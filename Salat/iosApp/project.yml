@@ -1,0 +1,41 @@
+# XcodeGen-oppsett. Xcode-prosjektet genereres fra denne filen i GitHub Actions.
+name: Salat
+options:
+  bundleIdPrefix: no.jodal
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  Salat:
+    type: application
+    platform: iOS
+    sources: [Salat]
+    scheme: {}
+    info:
+      path: Salat/Info.plist
+      properties:
+        CFBundleDisplayName: Salat
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        CADisableMinimumFrameDurationOnPhone: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.jodal.salat
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        # Kotlin-koden bygges som et statisk rammeverk av Gradle-steget under.
+        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS: $(inherited) -framework Shared
+        # Gradle-steget må kunne lese og skrive utenfor Xcode sin sandkasse.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    preBuildScripts:
+      - name: Bygg Kotlin
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
