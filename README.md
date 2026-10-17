@@ -9,11 +9,17 @@ Each app has its own folder in the root of the repo:
 ```
 mobile-apps/
 ├── README.md
-├── <app-one>/
-└── <app-two>/
+├── .github/workflows/   Build workflows, one per app (GitHub requires them here)
+└── Salat/
 ```
 
 Each app folder holds the source code for that app and a short README about it.
+
+## Apps
+
+| App | What it is |
+| --- | --- |
+| [🥗 Salat](Salat/) | An "everything" app with many small apps inside it. [Download](https://github.com/oljodev/mobile-apps/releases/tag/salat-latest) |
 
 ## How the apps are built
 
