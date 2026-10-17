@@ -1,0 +1,12 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+
+# Genereres av XcodeGen fra iosApp/project.yml
+iosApp/*.xcodeproj/
+iosApp/build/
+*.ipa
+iosApp/Salat/Info.plist
