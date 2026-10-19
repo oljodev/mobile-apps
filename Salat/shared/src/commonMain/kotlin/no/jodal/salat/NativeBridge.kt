@@ -27,6 +27,12 @@ interface NativeBridge {
     /** Lagrer tekst på telefonen. */
     fun saveText(key: String, value: String)
 
+    /** Leser en hemmelighet, f.eks. en API-nøkkel, fra nøkkelringen, eller `null`. */
+    fun loadSecret(key: String): String?
+
+    /** Lagrer en hemmelighet i nøkkelringen. Tom tekst sletter den. */
+    fun saveSecret(key: String, value: String)
+
     /**
      * Gjør alarmene og varslene fra Rise lik [planJson], en `RisePlan` som JSON.
      * [onResult] kalles med en feilmelding, eller `null` hvis alt ble planlagt.

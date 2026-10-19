@@ -34,6 +34,14 @@ final class IosNativeBridge: NSObject, NativeBridge {
         UserDefaults.standard.set(value, forKey: "salat.\(key)")
     }
 
+    func loadSecret(key: String) -> String? {
+        Keychain.load(key)
+    }
+
+    func saveSecret(key: String, value: String) {
+        Keychain.save(key, value: value)
+    }
+
     func applyRiseSchedule(planJson: String, onResult: @escaping (String?) -> Void) {
         RiseScheduler.apply(planJson: planJson, completion: onResult)
     }

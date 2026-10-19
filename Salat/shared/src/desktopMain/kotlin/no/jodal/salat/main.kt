@@ -42,6 +42,12 @@ private object PreviewBridge : NativeBridge {
         storage[key] = value
     }
 
+    override fun loadSecret(key: String): String? = storage["secret.$key"]
+
+    override fun saveSecret(key: String, value: String) {
+        storage["secret.$key"] = value
+    }
+
     override fun applyRiseSchedule(planJson: String, onResult: (String?) -> Unit) {
         println("Forhåndsvisning: Rise-plan på ${planJson.length} tegn")
         onResult(null)
