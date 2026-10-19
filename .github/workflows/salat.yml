@@ -6,10 +6,12 @@ on:
     paths:
       - "Salat/**"
       - ".github/workflows/salat.yml"
+      - ".github/scripts/update_sidestore_source.py"
   pull_request:
     paths:
       - "Salat/**"
       - ".github/workflows/salat.yml"
+      - ".github/scripts/update_sidestore_source.py"
   workflow_dispatch:
 
 jobs:
@@ -21,6 +23,10 @@ jobs:
     defaults:
       run:
         working-directory: Salat
+    env:
+      # Hvert bygg får et nytt versjonsnummer, så SideStore ser at det finnes en oppdatering.
+      VERSION: 0.1.${{ github.run_number }}
+      BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v7
 
@@ -52,6 +58,8 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build/DerivedData \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
@@ -69,15 +77,40 @@ jobs:
           name: Salat
           path: Salat/iosApp/build/Salat.ipa
 
-      # Legger siste bygg fra main ut som en release, så .ipa-en kan lastes ned rett på telefonen.
+      # Hvert bygg fra main blir en egen release, så .ipa-en kan lastes ned rett på telefonen.
       - name: Publish release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         working-directory: Salat/iosApp/build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete salat-latest --yes --cleanup-tag || true
-          gh release create salat-latest Salat.ipa \
+          gh release create "salat-v$VERSION" Salat.ipa \
             --target "$GITHUB_SHA" \
-            --title "Salat (siste bygg)" \
+            --title "Salat $VERSION" \
             --notes "Bygget fra $GITHUB_SHA."
+
+      # SideStore-kilden ligger i releasen «sidestore». SideStore sjekker den for nye versjoner.
+      - name: Update SideStore source
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        working-directory: Salat/iosApp/build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view sidestore > /dev/null 2>&1; then
+            gh release create sidestore \
+              --latest=false \
+              --title "SideStore-kilde" \
+              --notes "Legg til https://github.com/$GITHUB_REPOSITORY/releases/download/sidestore/source.json som kilde i SideStore for å få oppdateringer."
+          fi
+          gh release download sidestore --pattern source.json || true
+          python3 -I "$GITHUB_WORKSPACE/.github/scripts/update_sidestore_source.py" \
+            --source source.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --app Payload/Salat.app \
+            --ipa Salat.ipa \
+            --download-url "https://github.com/$GITHUB_REPOSITORY/releases/download/salat-v$VERSION/Salat.ipa" \
+            --icon-url "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/Salat/iosApp/Salat/Assets.xcassets/AppIcon.appiconset/AppIcon.png" \
+            --description "En «alt mulig»-app med mange små apper inni." \
+            --tint-color 8CD47E \
+            --notes "$(git log -1 --format=%s "$GITHUB_SHA")"
+          gh release upload sidestore source.json --clobber
