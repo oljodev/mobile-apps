@@ -1,0 +1,60 @@
+package no.jodal.salat.apps.kompis
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/** Alt Kompis lagrer, bortsett fra API-nøkkelen, som ligger i nøkkelringen. */
+@Serializable
+data class KompisData(
+    val conversations: List<Conversation> = emptyList(),
+    val settings: KompisSettings = KompisSettings(),
+)
+
+@Serializable
+data class Conversation(
+    val id: String,
+    val title: String,
+    val createdAtMillis: Long,
+    val updatedAtMillis: Long,
+    val messages: List<Message> = emptyList(),
+    /** Hvor lenge man har snakket til sammen, i sekunder. */
+    val durationSeconds: Int = 0,
+)
+
+@Serializable
+data class Message(
+    val role: Role,
+    val text: String,
+    val atMillis: Long,
+)
+
+@Serializable
+enum class Role {
+    @SerialName("user") User,
+    @SerialName("kompis") Kompis,
+}
+
+@Serializable
+data class KompisSettings(
+    val voice: String = KompisVoice.Kore.id,
+    val personality: String = DefaultPersonality,
+)
+
+const val DefaultPersonality =
+    "Du er Kompis, en vennlig og nysgjerrig samtalepartner. Du snakker norsk, svarer kort og naturlig " +
+        "som i en muntlig samtale, og stiller gjerne et oppfølgingsspørsmål."
+
+/** Stemmene i Gemini Live. [id] er navnet Gemini bruker. */
+enum class KompisVoice(val id: String, val description: String) {
+    Kore("Kore", "Bestemt og tydelig"),
+    Puck("Puck", "Opplagt og glad"),
+    Charon("Charon", "Rolig og informativ"),
+    Aoede("Aoede", "Luftig og avslappet"),
+    Fenrir("Fenrir", "Energisk"),
+    Zephyr("Zephyr", "Lys og vennlig"),
+    ;
+
+    companion object {
+        fun byId(id: String): KompisVoice = entries.firstOrNull { it.id == id } ?: Kore
+    }
+}
