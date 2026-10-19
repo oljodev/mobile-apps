@@ -2,6 +2,7 @@ package no.jodal.salat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import org.jetbrains.compose.resources.DrawableResource
 import no.jodal.salat.apps.AiPrat
 import no.jodal.salat.apps.Alarmer
 import no.jodal.salat.apps.Fornyelse
@@ -12,6 +13,8 @@ class MiniApp(
     val title: String,
     val emoji: String,
     val description: String,
+    /** Bilde som brukes i stedet for [emoji] på forsiden, hvis mini-appen har en egen logo. */
+    val icon: DrawableResource? = null,
     /** Fargen på kortet og toppen av mini-appen. */
     val color: Color,
     val section: Section = Section.Apps,

@@ -169,7 +169,7 @@ private fun AppTile(app: MiniApp, darkTheme: Boolean, onClick: () -> Unit) {
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            EmojiBadge(app, size = 60)
+            AppIcon(app, size = 60)
             Spacer(Modifier.weight(1f))
             if (!available) {
                 Text(
@@ -223,7 +223,7 @@ private fun ToolRow(app: MiniApp, darkTheme: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun EmojiBadge(app: MiniApp, size: Int) {
+fun AppIcon(app: MiniApp, size: Int) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -231,7 +231,12 @@ fun EmojiBadge(app: MiniApp, size: Int) {
             .clip(RoundedCornerShape((size * 0.3f).dp))
             .background(app.color),
     ) {
-        Text(app.emoji, fontSize = (size * 0.5f).sp)
+        val icon = app.icon
+        if (icon != null) {
+            Image(painterResource(icon), contentDescription = null, modifier = Modifier.size((size * 0.8f).dp))
+        } else {
+            Text(app.emoji, fontSize = (size * 0.5f).sp)
+        }
     }
 }
 
