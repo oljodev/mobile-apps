@@ -10,8 +10,8 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 
 | Mini-app | Del | Hva den gjør |
 | --- | --- | --- |
-| ⏰ Alarmer | Appene dine | Kommer snart. Vekking, trening og påminnelser. Navnet er midlertidig. |
-| 🎙️ AI-prat | Appene dine | Kommer snart. Snakk med en AI, med stemmen. Navnet er midlertidig. |
+| 🍚 Rise | Appene dine | Kommer snart. Vekking, trening og påminnelser, og etter hvert en kalender. |
+| 🎙️ Kompis | Appene dine | Kommer snart. Snakk med en AI, med stemmen. |
 | ⏳ Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
 | 🔔 Varseltest | Verktøy | Sender testvarsler, så du kan sjekke at varsler og lyd virker. |
 
@@ -27,7 +27,7 @@ Påminnelsen om fornyelse flyttes hver gang du åpner Salat. Har du ikke åpnet 
 Salat/
 ├── shared/                  Kotlin: all UI og logikk
 │   └── src/
-│       ├── commonMain/      Felles kode: forsiden (ui/), mini-appene (apps/) og logoen (composeResources/)
+│       ├── commonMain/      Felles kode: forsiden (ui/), mini-appene (apps/) og logoer (composeResources/)
 │       ├── iosMain/         Kobler Compose-UI-et til iOS
 │       └── desktopMain/     Forhåndsvisning på Linux
 └── iosApp/                  Swift: oppstart, varsler, signeringsinfo

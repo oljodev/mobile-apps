@@ -3,9 +3,9 @@ package no.jodal.salat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.DrawableResource
-import no.jodal.salat.apps.AiPrat
-import no.jodal.salat.apps.Alarmer
+import no.jodal.salat.apps.Kompis
 import no.jodal.salat.apps.Fornyelse
+import no.jodal.salat.apps.Rise
 import no.jodal.salat.apps.Varseltest
 
 /** En «app inni appen» som vises på forsiden. */
@@ -26,8 +26,8 @@ class MiniApp(
 
 /** Alle mini-appene, i den rekkefølgen de vises på forsiden. Nye mini-apper legges til her. */
 val miniApps = listOf(
-    Alarmer,
-    AiPrat,
+    Rise,
+    Kompis,
     Fornyelse,
     Varseltest,
 )

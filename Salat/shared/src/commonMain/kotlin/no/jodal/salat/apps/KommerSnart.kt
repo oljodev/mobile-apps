@@ -1,19 +1,22 @@
 package no.jodal.salat.apps
 
 import no.jodal.salat.MiniApp
+import no.jodal.salat.resources.Res
+import no.jodal.salat.resources.rise_logo
 import no.jodal.salat.ui.SalatColors
 
-// Mini-apper som er planlagt, men ikke laget ennå. Navnene er midlertidige.
+// Mini-apper som er planlagt, men ikke laget ennå.
 
-val Alarmer = MiniApp(
-    title = "Alarmer",
-    emoji = "⏰",
+val Rise = MiniApp(
+    title = "Rise",
+    emoji = "🍚",
     description = "Vekking, trening og påminnelser",
-    color = SalatColors.Orange,
+    icon = Res.drawable.rise_logo,
+    color = SalatColors.Lemon,
 )
 
-val AiPrat = MiniApp(
-    title = "AI-prat",
+val Kompis = MiniApp(
+    title = "Kompis",
     emoji = "🎙️",
     description = "Snakk med en AI, med stemmen",
     color = SalatColors.Lavender,
