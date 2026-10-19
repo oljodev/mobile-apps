@@ -33,4 +33,25 @@ private object PreviewBridge : NativeBridge {
         println("Forhåndsvisning: testalarm om $delaySeconds sekunder, slumring $snoozeMinutes min")
         onResult(null)
     }
+
+    private val storage = mutableMapOf<String, String>()
+
+    override fun loadText(key: String): String? = storage[key]
+
+    override fun saveText(key: String, value: String) {
+        storage[key] = value
+    }
+
+    override fun applyRiseSchedule(planJson: String, onResult: (String?) -> Unit) {
+        println("Forhåndsvisning: Rise-plan på ${planJson.length} tegn")
+        onResult(null)
+    }
+
+    override fun previewSound(sound: String) = println("Forhåndsvisning: spiller $sound")
+
+    override fun stopSoundPreview() = Unit
+
+    override fun pendingAwakeCheck(): String? = null
+
+    override fun confirmAwake() = Unit
 }
