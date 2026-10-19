@@ -11,7 +11,7 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 | Mini-app | Del | Hva den gjør |
 | --- | --- | --- |
 | Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser og slumring. Se [planen](docs/rise.md). |
-| Kompis | Appene dine | Snakk med Gemini Live med stemmen, også med skjermen av. Samtalene lagres og kan fortsettes. Designet er på plass, koblingen til Gemini kommer. |
+| Kompis | Appene dine | Snakk med Gemini Live med stemmen, også med skjermen av. Samtalene lagres og kan fortsettes. Bruker `gemini-3.8-live`. |
 | Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
 | Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 

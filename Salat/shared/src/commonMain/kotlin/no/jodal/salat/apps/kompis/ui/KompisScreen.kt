@@ -43,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,8 +57,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.kompis.Conversation
+import no.jodal.salat.apps.kompis.KompisLive
 import no.jodal.salat.apps.kompis.KompisStore
 import no.jodal.salat.apps.kompis.Period
 import no.jodal.salat.apps.kompis.formatDuration
@@ -76,6 +79,7 @@ private sealed interface KompisDestination {
 fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
     KompisTheme {
         val store = remember { KompisStore.get(bridge) }
+        val live = remember { KompisLive.get(store, bridge) }
         var destination by remember { mutableStateOf<KompisDestination>(KompisDestination.Home) }
         var showSettings by remember { mutableStateOf(false) }
         var showTranscript by remember { mutableStateOf(false) }
@@ -98,8 +102,13 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
             when (current) {
                 KompisDestination.Home -> KompisHome(
                     store = store,
+                    live = live,
                     onBack = onBack,
-                    onStart = { destination = KompisDestination.Live(null) },
+                    onStart = {
+                        live.start(continuing = null)
+                        destination = KompisDestination.Live(live.conversationId)
+                    },
+                    onReturnToLive = { destination = KompisDestination.Live(live.conversationId) },
                     onOpen = { destination = KompisDestination.Chat(it.id) },
                     onSettings = { showSettings = true },
                 )
@@ -112,7 +121,13 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
                             conversation = conversation,
                             nowMillis = store.nowMillis(),
                             onBack = { destination = KompisDestination.Home },
-                            onContinue = { destination = KompisDestination.Live(conversation.id) },
+                            onContinue = {
+                                if (live.conversationId != conversation.id) {
+                                    live.end()
+                                    live.start(continuing = conversation)
+                                }
+                                destination = KompisDestination.Live(conversation.id)
+                            },
                             onDelete = {
                                 store.deleteConversation(conversation.id)
                                 destination = KompisDestination.Home
@@ -121,14 +136,27 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
                     }
                 }
                 is KompisDestination.Live -> {
-                    val conversation = current.conversationId?.let(store::conversation)
+                    // Etterpå går man til samtalen, hvis noe ble sagt, ellers til oversikten.
+                    fun leave() {
+                        val saved = current.conversationId?.let(store::conversation)
+                        destination = saved?.let { KompisDestination.Chat(it.id) } ?: KompisDestination.Home
+                    }
+                    val elapsed by produceState(0, live.startedAtMillis, live.isActive) {
+                        while (live.isActive) {
+                            value = ((store.nowMillis() - live.startedAtMillis) / 1000).toInt()
+                            delay(1000)
+                        }
+                    }
                     LiveScreen(
-                        state = placeholderLiveState(store, conversation),
+                        state = live.state.copy(elapsedSeconds = elapsed),
                         showTranscript = showTranscript,
                         onToggleTranscript = { showTranscript = !showTranscript },
-                        onToggleMute = {},
-                        onEnd = { destination = conversation?.let { KompisDestination.Chat(it.id) } ?: KompisDestination.Home },
-                        onMinimize = { destination = conversation?.let { KompisDestination.Chat(it.id) } ?: KompisDestination.Home },
+                        onToggleMute = live::toggleMute,
+                        onEnd = {
+                            live.end()
+                            leave()
+                        },
+                        onMinimize = ::leave,
                     )
                 }
             }
@@ -140,23 +168,13 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
     }
 }
 
-/** Det samtaleskjermen viser før koblingen til Gemini er på plass. */
-private fun placeholderLiveState(store: KompisStore, conversation: Conversation?) = LiveUiState(
-    title = conversation?.title ?: "Ny samtale",
-    status = if (store.hasApiKey) LiveStatus.NotAvailable else LiveStatus.NeedsApiKey,
-    messages = conversation?.messages.orEmpty(),
-    message = if (store.hasApiKey) {
-        "Samtaler med Gemini kommer i neste versjon av Kompis."
-    } else {
-        "Legg inn en Gemini-nøkkel i innstillingene for å snakke med Kompis."
-    },
-)
-
 @Composable
 fun KompisHome(
     store: KompisStore,
+    live: KompisLive,
     onBack: () -> Unit,
     onStart: () -> Unit,
+    onReturnToLive: () -> Unit,
     onOpen: (Conversation) -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -175,7 +193,11 @@ fun KompisHome(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "top") { HomeTopBar(onBack = onBack, onSettings = onSettings) }
-        item(key = "welcome") { WelcomeCard(onStart = onStart) }
+        if (live.isActive) {
+            item(key = "ongoing") { OngoingCard(live, onClick = onReturnToLive) }
+        } else {
+            item(key = "welcome") { WelcomeCard(onStart = onStart) }
+        }
         if (!store.hasApiKey) {
             item(key = "key") { ApiKeyCard(onClick = onSettings) }
         }
@@ -273,6 +295,33 @@ private fun WelcomeCard(onStart: () -> Unit) {
                 FeatureChip(Icons.Rounded.Lock, "Med skjermen av")
             }
         }
+    }
+}
+
+/** Vises i stedet for velkomstkortet mens en samtale pågår. */
+@Composable
+private fun OngoingCard(live: KompisLive, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(KompisPalette.Night)
+            .clickable(onClick = onClick)
+            .padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        Orb(mode = live.state.status.orb, level = live.state.level, modifier = Modifier.size(72.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Samtale pågår", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(
+                live.state.status.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f),
+            )
+        }
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color.White)
     }
 }
 

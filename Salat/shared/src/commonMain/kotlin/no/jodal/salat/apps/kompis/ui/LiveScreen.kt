@@ -58,7 +58,6 @@ import no.jodal.salat.apps.kompis.formatTimer
 /** Hvor samtalen er akkurat nå. */
 enum class LiveStatus(val label: String, val orb: OrbMode) {
     NeedsApiKey("Mangler nøkkel", OrbMode.Idle),
-    NotAvailable("Ikke klar ennå", OrbMode.Idle),
     Connecting("Kobler til", OrbMode.Thinking),
     Listening("Lytter", OrbMode.Listening),
     Thinking("Tenker", OrbMode.Thinking),
@@ -66,6 +65,7 @@ enum class LiveStatus(val label: String, val orb: OrbMode) {
     Reconnecting("Kobler til igjen", OrbMode.Thinking),
     Muted("Mikrofonen er av", OrbMode.Idle),
     Failed("Noe gikk galt", OrbMode.Idle),
+    Ended("Samtalen er avsluttet", OrbMode.Idle),
 }
 
 /** Alt samtaleskjermen viser. Fylles av koblingen til Gemini. */
