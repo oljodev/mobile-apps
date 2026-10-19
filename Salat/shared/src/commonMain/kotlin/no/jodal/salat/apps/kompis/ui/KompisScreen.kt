@@ -128,6 +128,7 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
                                 }
                                 destination = KompisDestination.Live(conversation.id)
                             },
+                            onRename = { store.renameConversation(conversation.id, it) },
                             onDelete = {
                                 store.deleteConversation(conversation.id)
                                 destination = KompisDestination.Home

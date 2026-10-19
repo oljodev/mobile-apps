@@ -20,13 +20,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,8 +37,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,10 +61,12 @@ fun ConversationScreen(
     nowMillis: Long,
     onBack: () -> Unit,
     onContinue: () -> Unit,
+    onRename: (String) -> Unit,
     onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     var confirmDelete by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
@@ -76,8 +88,14 @@ fun ConversationScreen(
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).clip(CircleShape).clickable { renaming = true }.padding(horizontal = 8.dp, vertical = 6.dp),
                 )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(36.dp).clip(CircleShape).clickable { renaming = true },
+                ) {
+                    Icon(Icons.Rounded.Edit, contentDescription = "Endre navn", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                }
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(end = 8.dp).size(36.dp).clip(CircleShape).clickable { confirmDelete = true },
@@ -129,6 +147,17 @@ fun ConversationScreen(
         }
     }
 
+    if (renaming) {
+        RenameDialog(
+            current = conversation.title,
+            onDismiss = { renaming = false },
+            onSave = {
+                renaming = false
+                onRename(it)
+            },
+        )
+    }
+
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -143,4 +172,30 @@ fun ConversationScreen(
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Avbryt") } },
         )
     }
+}
+
+@Composable
+private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var value by remember { mutableStateOf(TextFieldValue(current, selection = TextRange(0, current.length))) }
+    val focus = remember { FocusRequester() }
+    val canSave = value.text.isNotBlank()
+    LaunchedEffect(Unit) { focus.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Endre navn") },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                singleLine = true,
+                placeholder = { Text("Navn på samtalen") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(value.text) }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        },
+        confirmButton = { TextButton(onClick = { onSave(value.text) }, enabled = canSave) { Text("Lagre") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Avbryt") } },
+    )
 }
