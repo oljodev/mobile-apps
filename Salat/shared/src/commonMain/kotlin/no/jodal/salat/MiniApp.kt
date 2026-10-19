@@ -2,6 +2,8 @@ package no.jodal.salat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import no.jodal.salat.apps.AiPrat
+import no.jodal.salat.apps.Alarmer
 import no.jodal.salat.apps.Fornyelse
 import no.jodal.salat.apps.Varseltest
 
@@ -21,6 +23,8 @@ class MiniApp(
 
 /** Alle mini-appene, i den rekkefølgen de vises på forsiden. Nye mini-apper legges til her. */
 val miniApps = listOf(
+    Alarmer,
+    AiPrat,
     Fornyelse,
     Varseltest,
 )
