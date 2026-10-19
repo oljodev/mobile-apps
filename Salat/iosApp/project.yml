@@ -23,6 +23,9 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         CADisableMinimumFrameDurationOnPhone: true
         NSAlarmKitUsageDescription: Rise bruker alarmer for å vekke deg og minne deg på ting, også når telefonen står på lydløs.
+        NSMicrophoneUsageDescription: Kompis bruker mikrofonen så du kan snakke med den.
+        # Lar samtaler med Kompis fortsette når skjermen er låst.
+        UIBackgroundModes: [audio]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.jodal.salat

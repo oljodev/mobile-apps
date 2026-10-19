@@ -56,4 +56,11 @@ private object PreviewBridge : NativeBridge {
     override fun previewSound(sound: String) = println("Forhåndsvisning: spiller $sound")
 
     override fun stopSoundPreview() = Unit
+
+    override fun startLiveSession(configJson: String, listener: LiveListener) =
+        listener.onError("Samtaler med Gemini virker bare på iPhone.")
+
+    override fun stopLiveSession() = Unit
+
+    override fun setLiveMuted(muted: Boolean) = Unit
 }

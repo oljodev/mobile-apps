@@ -53,4 +53,16 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func stopSoundPreview() {
         SoundPreview.shared.stop()
     }
+
+    func startLiveSession(configJson: String, listener: LiveListener) {
+        LiveSession.shared.start(configJson: configJson, listener: listener)
+    }
+
+    func stopLiveSession() {
+        LiveSession.shared.stop()
+    }
+
+    func setLiveMuted(muted: Bool) {
+        LiveSession.shared.setMuted(muted)
+    }
 }

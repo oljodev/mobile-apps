@@ -1,0 +1,439 @@
+import AVFoundation
+import Foundation
+import Shared
+
+/// En samtale med Gemini Live: mikrofonen strømmes til Gemini, og svaret spilles av.
+///
+/// Lyden går gjennom iOS sin ekkodemping, så Kompis ikke hører seg selv. Appen har lov til å bruke
+/// lyd i bakgrunnen, så samtalen fortsetter når skjermen er låst.
+final class LiveSession {
+    static let shared = LiveSession()
+
+    private struct Config: Decodable {
+        let apiKey: String
+        let model: String
+        let voice: String
+        let systemInstruction: String
+        let history: [Turn]
+
+        struct Turn: Decodable {
+            let role: String
+            let text: String
+        }
+    }
+
+    private var config: Config?
+    private var listener: LiveListener?
+
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    /// Formatet Gemini sender: 24 kHz, 16-bit, mono. Spilles av som float.
+    private let playbackFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 24_000, channels: 1, interleaved: false)!
+    /// Formatet Gemini vil ha: 16 kHz, 16-bit, mono.
+    private let sendFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
+    private var converter: AVAudioConverter?
+
+    private var socket: URLSessionWebSocketTask?
+    /// Øker for hver tilkobling, så meldinger fra en gammel tilkobling kan ignoreres.
+    private var connection = 0
+    private var isReady = false
+    private var isRunning = false
+    private var isMuted = false
+    private var resumptionHandle: String?
+    private var reconnectAttempts = 0
+
+    private var pendingBuffers = 0
+    private var turnCompleteWhilePlaying = false
+    private var isSpeaking = false
+    private var lastLevelUpdate = Date.distantPast
+
+    // MARK: - Start og stopp
+
+    func start(configJson: String, listener: LiveListener) {
+        stop()
+        guard let config = try? JSONDecoder().decode(Config.self, from: Data(configJson.utf8)) else {
+            listener.onError(message: "Kunne ikke lese innstillingene for samtalen.")
+            return
+        }
+        self.config = config
+        self.listener = listener
+        isRunning = true
+        isMuted = false
+        resumptionHandle = nil
+        reconnectAttempts = 0
+        listener.onStatus(status: "connecting")
+
+        Task { @MainActor in
+            guard await AVAudioApplication.requestRecordPermission() else {
+                self.fail("Kompis trenger tilgang til mikrofonen. Slå det på i Innstillinger → Apper → Salat.")
+                return
+            }
+            do {
+                try self.startAudio()
+            } catch {
+                self.fail("Kunne ikke starte lyden: \(error.localizedDescription)")
+                return
+            }
+            self.connect()
+        }
+    }
+
+    func stop() {
+        guard isRunning else { return }
+        isRunning = false
+        isReady = false
+        connection += 1
+        socket?.cancel(with: .normalClosure, reason: nil)
+        socket = nil
+        engine.inputNode.removeTap(onBus: 0)
+        player.stop()
+        engine.stop()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        NotificationCenter.default.removeObserver(self)
+        pendingBuffers = 0
+        isSpeaking = false
+    }
+
+    func setMuted(_ muted: Bool) {
+        isMuted = muted
+        if muted, isReady {
+            send(["realtimeInput": ["audioStreamEnd": true]])
+        }
+    }
+
+    private func fail(_ message: String) {
+        let listener = self.listener
+        stop()
+        listener?.onError(message: message)
+    }
+
+    // MARK: - Lyd
+
+    private func startAudio() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(
+            .playAndRecord,
+            mode: .voiceChat,
+            options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
+        )
+        try session.setActive(true)
+
+        let input = engine.inputNode
+        // Ekkodemping, så Kompis ikke hører sin egen stemme fra høyttaleren.
+        try input.setVoiceProcessingEnabled(true)
+
+        if player.engine == nil {
+            engine.attach(player)
+        }
+        engine.connect(player, to: engine.mainMixerNode, format: playbackFormat)
+
+        let inputFormat = input.outputFormat(forBus: 0)
+        converter = AVAudioConverter(from: inputFormat, to: sendFormat)
+        input.removeTap(onBus: 0)
+        input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { [weak self] buffer, _ in
+            self?.handleMicrophone(buffer)
+        }
+
+        engine.prepare()
+        try engine.start()
+        player.play()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(routeChanged),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(interrupted(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+        reportRoute()
+    }
+
+    private func handleMicrophone(_ buffer: AVAudioPCMBuffer) {
+        guard isReady, !isMuted, let converter else { return }
+
+        let ratio = sendFormat.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
+        guard let converted = AVAudioPCMBuffer(pcmFormat: sendFormat, frameCapacity: capacity) else { return }
+        var consumed = false
+        var error: NSError?
+        converter.convert(to: converted, error: &error) { _, status in
+            if consumed {
+                status.pointee = .noDataNow
+                return nil
+            }
+            consumed = true
+            status.pointee = .haveData
+            return buffer
+        }
+        guard error == nil, converted.frameLength > 0, let samples = converted.int16ChannelData else { return }
+
+        let data = Data(bytes: samples[0], count: Int(converted.frameLength) * 2)
+        send(["realtimeInput": ["audio": ["data": data.base64EncodedString(), "mimeType": "audio/pcm;rate=16000"]]])
+
+        if !isSpeaking {
+            reportLevel(rms(int16: samples[0], count: Int(converted.frameLength)))
+        }
+    }
+
+    /// Spiller av en bit av svaret fra Gemini (16-bit PCM, 24 kHz).
+    private func play(_ data: Data) {
+        let count = data.count / 2
+        guard count > 0, let buffer = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: AVAudioFrameCount(count)) else { return }
+        buffer.frameLength = AVAudioFrameCount(count)
+        let output = buffer.floatChannelData![0]
+        data.withUnsafeBytes { raw in
+            let samples = raw.bindMemory(to: Int16.self)
+            for i in 0..<count {
+                output[i] = Float(Int16(littleEndian: samples[i])) / 32768
+            }
+        }
+        pendingBuffers += 1
+        if !isSpeaking {
+            isSpeaking = true
+            listener?.onStatus(status: "speaking")
+        }
+        let level = rms(float: output, count: count)
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            DispatchQueue.main.async { self?.bufferPlayed() }
+        }
+        reportLevel(level)
+    }
+
+    private func bufferPlayed() {
+        pendingBuffers = max(0, pendingBuffers - 1)
+        if pendingBuffers == 0, turnCompleteWhilePlaying {
+            turnCompleteWhilePlaying = false
+            finishSpeaking()
+        }
+    }
+
+    private func finishSpeaking() {
+        guard isSpeaking else { return }
+        isSpeaking = false
+        listener?.onLevel(level: 0)
+        listener?.onStatus(status: "listening")
+    }
+
+    /// Brukeren avbrøt: kast det som ikke er spilt av ennå.
+    private func clearPlayback() {
+        player.stop()
+        player.play()
+        pendingBuffers = 0
+        turnCompleteWhilePlaying = false
+        finishSpeaking()
+    }
+
+    private func reportLevel(_ level: Float) {
+        let now = Date()
+        guard now.timeIntervalSince(lastLevelUpdate) > 0.06 else { return }
+        lastLevelUpdate = now
+        // Taletale ligger rundt 0.02–0.2 i RMS, så skaler opp og kapp av.
+        let scaled = min(1, sqrt(level) * 2.2)
+        DispatchQueue.main.async { self.listener?.onLevel(level: scaled) }
+    }
+
+    private func rms(int16 samples: UnsafePointer<Int16>, count: Int) -> Float {
+        guard count > 0 else { return 0 }
+        var sum: Float = 0
+        for i in 0..<count {
+            let v = Float(samples[i]) / 32768
+            sum += v * v
+        }
+        return (sum / Float(count)).squareRoot()
+    }
+
+    private func rms(float samples: UnsafePointer<Float>, count: Int) -> Float {
+        guard count > 0 else { return 0 }
+        var sum: Float = 0
+        for i in 0..<count {
+            sum += samples[i] * samples[i]
+        }
+        return (sum / Float(count)).squareRoot()
+    }
+
+    @objc private func routeChanged() {
+        DispatchQueue.main.async { self.reportRoute() }
+    }
+
+    private func reportRoute() {
+        let output = AVAudioSession.sharedInstance().currentRoute.outputs.first
+        let name: String
+        switch output?.portType {
+        case .builtInSpeaker: name = "Høyttaler"
+        case .builtInReceiver: name = "iPhone"
+        default: name = output?.portName ?? "iPhone"
+        }
+        listener?.onAudioRoute(name: name)
+    }
+
+    @objc private func interrupted(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        DispatchQueue.main.async {
+            switch type {
+            case .began:
+                self.listener?.onStatus(status: "reconnecting")
+            case .ended:
+                // Etter f.eks. en telefonsamtale: start lyden igjen.
+                try? AVAudioSession.sharedInstance().setActive(true)
+                try? self.engine.start()
+                self.player.play()
+                self.listener?.onStatus(status: "listening")
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    // MARK: - Tilkobling
+
+    private func connect() {
+        guard isRunning, let config else { return }
+        connection += 1
+        let current = connection
+        isReady = false
+
+        var components = URLComponents(string: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent")!
+        components.queryItems = [URLQueryItem(name: "key", value: config.apiKey)]
+        let socket = URLSession.shared.webSocketTask(with: components.url!)
+        socket.maximumMessageSize = 16 * 1024 * 1024
+        self.socket = socket
+        socket.resume()
+
+        var setup: [String: Any] = [
+            "model": "models/\(config.model)",
+            "generationConfig": [
+                "responseModalities": ["AUDIO"],
+                "speechConfig": ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": config.voice]]],
+            ],
+            "systemInstruction": ["parts": [["text": config.systemInstruction]]],
+            "inputAudioTranscription": [String: Any](),
+            "outputAudioTranscription": [String: Any](),
+            // Uten dette stopper samtalen etter 15 minutter.
+            "contextWindowCompression": ["slidingWindow": [String: Any]()],
+            "sessionResumption": resumptionHandle.map { ["handle": $0] } ?? [String: Any](),
+        ]
+        let sendHistory = resumptionHandle == nil && !config.history.isEmpty
+        if sendHistory {
+            setup["historyConfig"] = ["initialHistoryInClientContent": true]
+        }
+        send(["setup": setup])
+        receive(on: socket, connection: current, sendHistory: sendHistory)
+    }
+
+    private func receive(on socket: URLSessionWebSocketTask, connection current: Int, sendHistory: Bool) {
+        socket.receive { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, current == self.connection else { return }
+                switch result {
+                case .success(let message):
+                    let data: Data?
+                    switch message {
+                    case .data(let d): data = d
+                    case .string(let s): data = s.data(using: .utf8)
+                    @unknown default: data = nil
+                    }
+                    if let data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        self.handle(json, sendHistory: sendHistory)
+                    }
+                    self.receive(on: socket, connection: current, sendHistory: sendHistory)
+                case .failure:
+                    self.connectionLost(socket)
+                }
+            }
+        }
+    }
+
+    private func handle(_ message: [String: Any], sendHistory: Bool) {
+        if message["setupComplete"] != nil {
+            if sendHistory, let config {
+                let turns = config.history.map { ["role": $0.role, "parts": [["text": $0.text]]] }
+                send(["clientContent": ["turns": turns, "turnComplete": true]])
+            }
+            isReady = true
+            reconnectAttempts = 0
+            listener?.onStatus(status: "listening")
+            return
+        }
+
+        if let update = message["sessionResumptionUpdate"] as? [String: Any],
+           update["resumable"] as? Bool == true,
+           let handle = update["newHandle"] as? String, !handle.isEmpty {
+            resumptionHandle = handle
+        }
+
+        if message["goAway"] != nil {
+            // Tilkoblingen stenger snart. Koble til igjen med en gang, så samtalen fortsetter.
+            reconnect()
+            return
+        }
+
+        guard let content = message["serverContent"] as? [String: Any] else { return }
+
+        if content["interrupted"] as? Bool == true {
+            clearPlayback()
+            listener?.onInterrupted()
+        }
+        if let text = (content["inputTranscription"] as? [String: Any])?["text"] as? String, !text.isEmpty {
+            listener?.onUserText(text: text)
+        }
+        if let text = (content["outputTranscription"] as? [String: Any])?["text"] as? String, !text.isEmpty {
+            listener?.onKompisText(text: text)
+        }
+        if let parts = (content["modelTurn"] as? [String: Any])?["parts"] as? [[String: Any]] {
+            for part in parts {
+                if let inline = part["inlineData"] as? [String: Any],
+                   let base64 = inline["data"] as? String,
+                   let audio = Data(base64Encoded: base64) {
+                    play(audio)
+                }
+            }
+        }
+        if content["turnComplete"] as? Bool == true {
+            listener?.onTurnComplete()
+            if pendingBuffers > 0 {
+                turnCompleteWhilePlaying = true
+            } else {
+                finishSpeaking()
+            }
+        }
+    }
+
+    private func connectionLost(_ socket: URLSessionWebSocketTask) {
+        guard isRunning else { return }
+        if let reason = socket.closeReason.flatMap({ String(data: $0, encoding: .utf8) }), !reason.isEmpty,
+           socket.closeCode != .normalClosure, socket.closeCode != .goingAway, resumptionHandle == nil {
+            // Gemini avviste tilkoblingen, f.eks. på grunn av feil nøkkel.
+            fail("Gemini svarte: \(reason)")
+            return
+        }
+        reconnect()
+    }
+
+    private func reconnect() {
+        guard isRunning else { return }
+        reconnectAttempts += 1
+        if reconnectAttempts > 5 {
+            fail("Mistet kontakten med Gemini. Sjekk nettet og prøv igjen.")
+            return
+        }
+        listener?.onStatus(status: "reconnecting")
+        socket?.cancel(with: .goingAway, reason: nil)
+        let delay = reconnectAttempts == 1 ? 0 : Double(reconnectAttempts)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.connect()
+        }
+    }
+
+    private func send(_ message: [String: Any]) {
+        guard let socket,
+              let data = try? JSONSerialization.data(withJSONObject: message),
+              let text = String(data: data, encoding: .utf8) else { return }
+        socket.send(.string(text)) { _ in }
+    }
+}

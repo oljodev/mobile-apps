@@ -43,4 +43,41 @@ interface NativeBridge {
     fun previewSound(sound: String)
 
     fun stopSoundPreview()
+
+    /**
+     * Starter en samtale med Gemini Live. [configJson] er en `LiveConfig` som JSON.
+     * Lyd og tilkobling håndteres i Swift, og [listener] får vite hva som skjer.
+     */
+    fun startLiveSession(configJson: String, listener: LiveListener)
+
+    fun stopLiveSession()
+
+    fun setLiveMuted(muted: Boolean)
+}
+
+/** Det Swift forteller om en samtale med Gemini Live. Kalles alltid på hovedtråden. */
+interface LiveListener {
+    /** `connecting`, `listening`, `thinking`, `speaking`, `reconnecting` eller `ended`. */
+    fun onStatus(status: String)
+
+    /** Lydnivået til den som snakker, fra 0 til 1. */
+    fun onLevel(level: Float)
+
+    /** En bit av det brukeren sier. */
+    fun onUserText(text: String)
+
+    /** En bit av det Kompis sier. */
+    fun onKompisText(text: String)
+
+    /** Kompis er ferdig med å snakke. */
+    fun onTurnComplete()
+
+    /** Brukeren avbrøt Kompis. */
+    fun onInterrupted()
+
+    /** Hvor lyden går, f.eks. «AirPods Pro». */
+    fun onAudioRoute(name: String)
+
+    /** Noe gikk galt, og samtalen er stoppet. */
+    fun onError(message: String)
 }
