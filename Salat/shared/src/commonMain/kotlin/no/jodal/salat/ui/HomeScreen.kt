@@ -51,6 +51,8 @@ import kotlinx.datetime.toLocalDateTime
 import no.jodal.salat.MiniApp
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.Fornyelse
+import no.jodal.salat.apps.rise.RiseStore
+import no.jodal.salat.apps.rise.ui.AwakeCard
 import no.jodal.salat.miniApps
 import no.jodal.salat.resources.Res
 import no.jodal.salat.resources.salat_logo
@@ -60,6 +62,7 @@ import org.jetbrains.compose.resources.painterResource
 fun HomeScreen(bridge: NativeBridge, darkTheme: Boolean, onOpen: (MiniApp) -> Unit) {
     val apps = miniApps.filter { it.section == MiniApp.Section.Apps }
     val tools = miniApps.filter { it.section == MiniApp.Section.Tools }
+    val riseStore = remember { RiseStore.get(bridge) }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -73,6 +76,10 @@ fun HomeScreen(bridge: NativeBridge, darkTheme: Boolean, onOpen: (MiniApp) -> Un
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
     ) {
         fullWidth { Header(bridge, darkTheme, onOpenRenewal = { onOpen(Fornyelse) }) }
+
+        riseStore.pendingAwakeCheck?.let { title ->
+            fullWidth { AwakeCard(title, onConfirm = riseStore::confirmAwake) }
+        }
 
         fullWidth { SectionTitle("Appene dine") }
         items(apps) { app -> AppTile(app, darkTheme, onClick = { onOpen(app) }) }

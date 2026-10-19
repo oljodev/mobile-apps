@@ -6,6 +6,8 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
@@ -56,19 +58,24 @@ private val Dark = darkColorScheme(
     error = Color(0xFFFF8A80),
 )
 
+/** Om appen vises i mørk modus. */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
 @Composable
 fun SalatTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val base = Typography()
-    MaterialTheme(
-        colorScheme = if (darkTheme) Dark else Light,
-        typography = base.copy(
-            displaySmall = base.displaySmall.copy(fontWeight = FontWeight.Bold),
-            headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold),
-            titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        ),
-        content = content,
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) Dark else Light,
+            typography = base.copy(
+                displaySmall = base.displaySmall.copy(fontWeight = FontWeight.Bold),
+                headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold),
+                titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            ),
+            content = content,
+        )
+    }
 }
 
 /** En dempet versjon av [color] som passer som bakgrunn i både lys og mørk modus. */
