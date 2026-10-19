@@ -22,6 +22,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
+            implementation(libs.compose.material.icons)
             implementation(libs.compose.resources)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
