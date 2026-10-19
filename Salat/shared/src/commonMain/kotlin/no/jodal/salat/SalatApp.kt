@@ -1,68 +1,61 @@
 package no.jodal.salat
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Card
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import no.jodal.salat.ui.HomeScreen
+import no.jodal.salat.ui.SalatTheme
+import no.jodal.salat.ui.tint
 
 @Composable
-fun SalatApp(bridge: NativeBridge) {
-    val colors = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-    MaterialTheme(colorScheme = colors) {
+fun SalatApp(bridge: NativeBridge, darkTheme: Boolean = isSystemInDarkTheme()) {
+    SalatTheme(darkTheme) {
         var openApp by remember { mutableStateOf<MiniApp?>(null) }
-        val app = openApp
-        if (app == null) {
-            HomeScreen(onOpen = { openApp = it })
-        } else {
-            MiniAppScreen(app, bridge, onBack = { openApp = null })
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HomeScreen(onOpen: (MiniApp) -> Unit) {
-    Scaffold(topBar = { TopAppBar(title = { Text("🥗 Salat") }) }) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(padding),
-        ) {
-            items(miniApps) { app ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { onOpen(app) }) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(app.emoji, fontSize = 40.sp)
-                        Text(app.title, style = MaterialTheme.typography.titleMedium)
-                        Text(app.description, style = MaterialTheme.typography.bodySmall)
-                    }
+        AnimatedContent(
+            targetState = openApp,
+            transitionSpec = {
+                // Mini-appen glir inn fra høyre, og ut igjen til høyre når man går tilbake.
+                val opening = targetState != null
+                val duration = 280
+                if (opening) {
+                    slideInHorizontally(tween(duration)) { it } togetherWith
+                        slideOutHorizontally(tween(duration)) { -it / 4 } + fadeOut(tween(duration))
+                } else {
+                    slideInHorizontally(tween(duration)) { -it / 4 } + fadeIn(tween(duration)) togetherWith
+                        slideOutHorizontally(tween(duration)) { it }
                 }
+            },
+        ) { app ->
+            if (app == null) {
+                HomeScreen(bridge, darkTheme, onOpen = { openApp = it })
+            } else {
+                MiniAppScreen(app, bridge, darkTheme, onBack = { openApp = null })
             }
         }
     }
@@ -70,17 +63,37 @@ private fun HomeScreen(onOpen: (MiniApp) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MiniAppScreen(app: MiniApp, bridge: NativeBridge, onBack: () -> Unit) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("${app.emoji} ${app.title}") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("‹ Salat") } },
-            )
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            app.content(bridge)
+private fun MiniAppScreen(app: MiniApp, bridge: NativeBridge, darkTheme: Boolean, onBack: () -> Unit) {
+    Box {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("${app.emoji}  ${app.title}") },
+                    navigationIcon = { TextButton(onClick = onBack) { Text("‹ Salat") } },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.tint(app.color, darkTheme),
+                    ),
+                )
+            },
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                app.content?.invoke(bridge)
+            }
         }
+        BackSwipeEdge(onBack)
     }
+}
+
+/** Sveip fra venstre kant for å gå tilbake, som ellers i iOS. */
+@Composable
+private fun BackSwipeEdge(onBack: () -> Unit) {
+    Box(
+        Modifier.fillMaxHeight().width(24.dp).pointerInput(Unit) {
+            var dragged = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { dragged = 0f },
+                onDragEnd = { if (dragged > 80.dp.toPx()) onBack() },
+            ) { _, amount -> dragged += amount }
+        },
+    )
 }

@@ -12,11 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import no.jodal.salat.MiniApp
 import no.jodal.salat.NativeBridge
+import no.jodal.salat.ui.SalatColors
 
 val Varseltest = MiniApp(
     title = "Varseltest",
     emoji = "🔔",
     description = "Sjekk at varsler og lyd virker",
+    color = SalatColors.Cheek,
+    section = MiniApp.Section.Tools,
     content = { bridge -> VarseltestScreen(bridge) },
 )
 
