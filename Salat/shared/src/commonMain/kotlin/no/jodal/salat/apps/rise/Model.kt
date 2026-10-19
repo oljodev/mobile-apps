@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 data class RiseData(
     val groups: List<RiseGroup> = DefaultGroups,
     val alarms: List<RiseAlarm> = emptyList(),
+    /** Vekkealarmer man har trykket «Jeg er oppe» på, som nøkler fra [occurrenceKey]. */
+    val confirmedAwake: Set<String> = emptySet(),
 )
 
 @Serializable
@@ -49,7 +51,7 @@ data class RiseAlarm(
     val sound: String = RiseSound.Default.id,
     /** Minutter, eller 0 for ingen slumring. Gjelder bare alarmer. */
     val snoozeMinutes: Int = 10,
-    /** Ring igjen etter 5 minutter til man trykker «Jeg er oppe». Gjelder bare alarmer. */
+    /** Ring igjen noen ganger etter alarmen, til man trykker «Jeg er oppe». Gjelder bare alarmer. */
     val awakeCheck: Boolean = false,
     /** Minutter før tidspunktet et ekstra varsel skal komme, eller 0 for ingen. Gjelder bare varsler. */
     val earlyWarningMinutes: Int = 0,

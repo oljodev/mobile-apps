@@ -50,8 +50,4 @@ private object PreviewBridge : NativeBridge {
     override fun previewSound(sound: String) = println("Forhåndsvisning: spiller $sound")
 
     override fun stopSoundPreview() = Unit
-
-    override fun pendingAwakeCheck(): String? = null
-
-    override fun confirmAwake() = Unit
 }

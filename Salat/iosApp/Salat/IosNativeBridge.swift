@@ -45,12 +45,4 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func stopSoundPreview() {
         SoundPreview.shared.stop()
     }
-
-    func pendingAwakeCheck() -> String? {
-        Alarms.shared.pendingAwakeTitle
-    }
-
-    func confirmAwake() {
-        Alarms.shared.confirmAwake()
-    }
 }

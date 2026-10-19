@@ -83,8 +83,8 @@ fun HomeScreen(bridge: NativeBridge, darkTheme: Boolean, onOpen: (MiniApp) -> Un
     ) {
         fullWidth { Header(bridge, darkTheme, onOpenRenewal = { onOpen(Fornyelse) }) }
 
-        riseStore.pendingAwakeCheck?.let { title ->
-            fullWidth { AwakeCard(title, onConfirm = riseStore::confirmAwake) }
+        riseStore.pendingAwakeCheck()?.let { alarm ->
+            fullWidth { AwakeCard(alarm.title.ifBlank { "Alarmen" }, onConfirm = riseStore::confirmAwake) }
         }
 
         fullWidth { SectionTitle("Appene dine") }

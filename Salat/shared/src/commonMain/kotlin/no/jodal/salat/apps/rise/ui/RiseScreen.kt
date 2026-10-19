@@ -105,9 +105,9 @@ fun RiseScreen(bridge: NativeBridge, onBack: () -> Unit) {
             ) {
                 item(key = "hero") { Hero(store.data.alarms, store.data.groups, now) }
 
-                store.pendingAwakeCheck?.let { title ->
+                store.pendingAwakeCheck(now)?.let { alarm ->
                     item(key = "awake") {
-                        AwakeCard(title, onConfirm = store::confirmAwake, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp))
+                        AwakeCard(alarm.title.ifBlank { "Alarmen" }, onConfirm = store::confirmAwake, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp))
                     }
                 }
                 store.scheduleError?.let { error ->
@@ -381,7 +381,7 @@ fun AwakeCard(title: String, onConfirm: () -> Unit, modifier: Modifier = Modifie
             Text("Er du oppe?", style = MaterialTheme.typography.titleLarge, color = white)
         }
         Text(
-            "«$title» ringer igjen om litt, helt til du bekrefter at du er oppe.",
+            "$title ringer igjen om litt, helt til du bekrefter at du er oppe.",
             style = MaterialTheme.typography.bodyMedium,
             color = white.copy(alpha = 0.9f),
         )

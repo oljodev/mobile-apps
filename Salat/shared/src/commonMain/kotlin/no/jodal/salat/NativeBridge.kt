@@ -37,10 +37,4 @@ interface NativeBridge {
     fun previewSound(sound: String)
 
     fun stopSoundPreview()
-
-    /** Tittelen på vekkealarmen som venter på «Jeg er oppe», eller `null`. */
-    fun pendingAwakeCheck(): String?
-
-    /** Bekrefter at man er oppe, og avlyser reservealarmen. */
-    fun confirmAwake()
 }

@@ -66,7 +66,6 @@ class PlannerTest {
     fun awakeCheckAndSnoozeOnlyApplyToAlarms() {
         val n = alarm("n", AlarmKind.Notification, Repeat.Once(monday)).copy(awakeCheck = true, snoozeMinutes = 10)
         val item = RisePlanner.plan(RiseData(alarms = listOf(n)), now, oslo).single()
-        assertEquals(false, item.awakeCheck)
         assertEquals(0, item.snoozeMinutes)
     }
 

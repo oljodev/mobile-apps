@@ -188,7 +188,7 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
                     SectionDivider()
                     SwitchRow(
                         title = "Sjekk at jeg er oppe",
-                        description = "Ringer igjen 5 minutter etter at du har stoppet alarmen, helt til du trykker «Jeg er oppe» i Rise.",
+                        description = "Ringer igjen tre ganger, med 5 minutters mellomrom etter alarmen og slumringen, til du trykker «Jeg er oppe» i Rise.",
                         checked = draft.awakeCheck,
                         onCheckedChange = { draft = draft.copy(awakeCheck = it) },
                     )

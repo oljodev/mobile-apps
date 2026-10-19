@@ -10,7 +10,6 @@ struct PlannedItem: Decodable {
     let body: String
     let sound: String
     let snoozeMinutes: Int
-    let awakeCheck: Bool
 
     var fireAt: Date {
         Date(timeIntervalSince1970: TimeInterval(fireAtMillis) / 1000)
