@@ -1,4 +1,4 @@
-# mobile-apps
+# Salat
 
 Small iOS apps I build for my own use. They are not published to the App Store. I install them on my phone with [SideStore](https://sidestore.io).
 
@@ -7,7 +7,7 @@ Small iOS apps I build for my own use. They are not published to the App Store. 
 Each app has its own folder in the root of the repo:
 
 ```
-mobile-apps/
+salat/
 ├── README.md
 ├── .github/workflows/   Build workflows, one per app (GitHub requires them here)
 └── Salat/
