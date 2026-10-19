@@ -1,4 +1,4 @@
-# 🥗 Salat
+# Salat
 
 En «alt mulig»-app: når du åpner den, ser du alle mini-appene inni den og velger hvilken du vil inn på.
 
@@ -10,10 +10,10 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 
 | Mini-app | Del | Hva den gjør |
 | --- | --- | --- |
-| 🍚 Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser, slumring og «Sjekk at jeg er oppe». Se [planen](docs/rise.md). |
-| 🎙️ Kompis | Appene dine | Kommer snart. Snakk med en AI, med stemmen. |
-| ⏳ Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
-| 🔔 Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
+| Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser og slumring. Se [planen](docs/rise.md). |
+| Kompis | Appene dine | Kommer snart. Snakk med en AI, med stemmen. |
+| Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
+| Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 
 ## Installere
 

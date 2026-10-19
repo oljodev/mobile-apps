@@ -1,12 +1,10 @@
 package no.jodal.salat.apps.rise
 
-import kotlin.time.Duration.Companion.hours
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 
 /** Én alarm eller ett varsel iOS skal planlegge. Sendes til Swift som JSON. */
@@ -35,13 +33,10 @@ object RisePlanner {
     fun plan(data: RiseData, now: LocalDateTime, timeZone: TimeZone): List<PlannedItem> {
         val until = now.date.plus(DatePeriod(days = WindowDays))
         val nowMillis = now.toInstant(timeZone).toEpochMilliseconds()
-        // Begynn litt tilbake i tid, så oppfølgingsalarmer etter en alarm som nettopp har ringt kommer med.
-        val since = (now.toInstant(timeZone) - 2.hours).toLocalDateTime(timeZone)
         val items = data.alarms
             .filter { it.enabled }
-            .flatMap { alarm ->
-                alarm.occurrences(since, until).flatMap { itemsFor(alarm, it, data.confirmedAwake, timeZone) }
-            }
+            .flatMap { alarm -> alarm.occurrences(now, until).flatMap { itemsFor(alarm, it, timeZone) } }
+            // Et forvarsel kan ligge før nå, selv om selve varselet ikke gjør det.
             .filter { it.fireAtMillis > nowMillis }
             .sortedBy { it.fireAtMillis }
         return items.filter { it.kind == AlarmKind.Alarm }.take(MaxAlarms) +
@@ -51,13 +46,12 @@ object RisePlanner {
     private fun itemsFor(
         alarm: RiseAlarm,
         at: LocalDateTime,
-        confirmedAwake: Set<String>,
         timeZone: TimeZone,
     ): List<PlannedItem> {
         val fireAt = at.toInstant(timeZone).toEpochMilliseconds()
         val title = alarm.title.ifBlank { if (alarm.kind == AlarmKind.Alarm) "Alarm" else "Påminnelse" }
         val main = PlannedItem(
-            id = occurrenceKey(alarm, at),
+            id = "${alarm.id}@$at",
             kind = alarm.kind,
             fireAtMillis = fireAt,
             title = title,
@@ -66,27 +60,8 @@ object RisePlanner {
             snoozeMinutes = if (alarm.kind == AlarmKind.Alarm) alarm.snoozeMinutes else 0,
         )
         return when (alarm.kind) {
-            AlarmKind.Alarm -> listOf(main) + awakeCheckFollowUps(alarm, at, main, confirmedAwake)
+            AlarmKind.Alarm -> listOf(main)
             AlarmKind.Notification -> earlyWarning(alarm, main) + main
-        }
-    }
-
-    private fun awakeCheckFollowUps(
-        alarm: RiseAlarm,
-        at: LocalDateTime,
-        main: PlannedItem,
-        confirmedAwake: Set<String>,
-    ): List<PlannedItem> {
-        if (!alarm.awakeCheck || occurrenceKey(alarm, at) in confirmedAwake) return emptyList()
-        return (0 until AwakeCheck.FollowUps).map { index ->
-            main.copy(
-                id = "${main.id}#oppe${index + 1}",
-                fireAtMillis = main.fireAtMillis + AwakeCheck.followUpDelayMinutes(alarm, index) * 60_000L,
-                title = "Er du oppe?",
-                body = "Trykk «Jeg er oppe» i Rise",
-                sound = RiseSound.Loud.id,
-                snoozeMinutes = 0,
-            )
         }
     }
 

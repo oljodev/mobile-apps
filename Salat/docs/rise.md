@@ -19,8 +19,7 @@ Rise er mini-appen for vekking og påminnelser i Salat. Senere kommer en kalende
 
 - Navn, klokkeslett, gruppe og type.
 - **Lyd:** valgt fra noen innebygde lyder.
-- **Slumretid:** 5, 10 eller 15 minutter, eller ingen slumring.
-- **«Sjekk at jeg er oppe»:** en bryter som står på som standard i Vekking-gruppen. Når den er på, ringer Rise tre ganger til, med 5 minutters mellomrom etter alarmen og slumringen, helt til man åpner Rise og trykker «Jeg er oppe».
+- **Slumring:** Av, 5, 10 eller 15 minutter, eller en egen tid fra 1 til 60 minutter. Slumre utsetter alarmen; Stopp skrur den av.
 
 ## Gjentakelse
 
@@ -40,5 +39,5 @@ Rise er mini-appen for vekking og påminnelser i Salat. Senere kommer en kalende
 ## Tekniske valg
 
 - **Begrensning på antall planlagte alarmer og varsler.** iOS begrenser hvor mange en app kan ha planlagt (64 varsler). Rise legger derfor inn de neste forekomstene som enkeltdatoer, og fyller på når appen åpnes.
-- **«Sjekk at jeg er oppe»** planlegges som tre vanlige alarmer etter vekkealarmen, samtidig med den. «Jeg er oppe» avlyser dem. Første versjon prøvde å planlegge en ny alarm når man trykket Stopp, men det virket ikke når appen var installert gjennom SideStore.
+- **«Sjekk at jeg er oppe» ble fjernet.** Rise ringte igjen etter vekkealarmen til man trykket «Jeg er oppe», men det var vanskelig å forstå sammen med slumring. Nå er det bare slumring.
 - **Alt lagres lokalt** på telefonen.

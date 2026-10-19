@@ -19,7 +19,7 @@ Each app folder holds the source code for that app and a short README about it.
 
 | App | What it is |
 | --- | --- |
-| [🥗 Salat](Salat/) | An "everything" app with many small apps inside it. |
+| [Salat](Salat/) | An "everything" app with many small apps inside it. |
 
 ## How the apps are built
 

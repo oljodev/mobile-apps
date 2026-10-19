@@ -62,7 +62,6 @@ import no.jodal.salat.apps.rise.Repeat
 import no.jodal.salat.apps.rise.RiseAlarm
 import no.jodal.salat.apps.rise.RiseSound
 import no.jodal.salat.apps.rise.RiseStore
-import no.jodal.salat.apps.rise.WakeUpGroupId
 import no.jodal.salat.apps.rise.formatDate
 import no.jodal.salat.apps.rise.formatMinutes
 import no.jodal.salat.apps.rise.longDayName
@@ -156,10 +155,7 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (group in store.data.groups) {
                         ChipButton(group.name, selected = draft.groupId == group.id) {
-                            draft = draft.copy(
-                                groupId = group.id,
-                                awakeCheck = if (isNew) group.id == WakeUpGroupId else draft.awakeCheck,
-                            )
+                            draft = draft.copy(groupId = group.id)
                         }
                     }
                 }
@@ -179,20 +175,7 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
             })
 
             if (draft.kind == AlarmKind.Alarm) {
-                SettingsSection("Slumring") {
-                    SegmentedControl(
-                        options = SnoozeOptions.map { if (it == 0) "Av" else "$it min" },
-                        selected = SnoozeOptions.indexOf(draft.snoozeMinutes).coerceAtLeast(0),
-                        onSelect = { draft = draft.copy(snoozeMinutes = SnoozeOptions[it]) },
-                    )
-                    SectionDivider()
-                    SwitchRow(
-                        title = "Sjekk at jeg er oppe",
-                        description = "Ringer igjen tre ganger, med 5 minutters mellomrom etter alarmen og slumringen, til du trykker «Jeg er oppe» i Rise.",
-                        checked = draft.awakeCheck,
-                        onCheckedChange = { draft = draft.copy(awakeCheck = it) },
-                    )
-                }
+                SnoozeSection(draft.snoozeMinutes) { draft = draft.copy(snoozeMinutes = it) }
             } else {
                 SettingsSection("Forvarsel") {
                     SegmentedControl(
@@ -429,6 +412,36 @@ private fun SkipNextSection(draft: RiseAlarm, now: LocalDateTime, onChange: (Ris
             checked = next in draft.skippedDates,
             onCheckedChange = { skip ->
                 onChange(draft.copy(skippedDates = if (skip) draft.skippedDates + next else draft.skippedDates - next))
+            },
+        )
+    }
+}
+
+@Composable
+private fun SnoozeSection(minutes: Int, onChange: (Int) -> Unit) {
+    // «Egen» er valgt hvis tiden ikke er et av de faste valgene, eller hvis man nettopp trykket på den.
+    var custom by remember { mutableStateOf(minutes !in SnoozeOptions) }
+    SettingsSection("Slumring") {
+        SegmentedControl(
+            options = SnoozeOptions.map { if (it == 0) "Av" else "$it min" } + "Egen",
+            selected = if (custom) SnoozeOptions.size else SnoozeOptions.indexOf(minutes),
+            onSelect = { index ->
+                custom = index == SnoozeOptions.size
+                onChange(if (custom) minutes.takeIf { it > 0 } ?: 20 else SnoozeOptions[index])
+            },
+        )
+        if (custom) {
+            Stepper(
+                text = "Slumre i $minutes min",
+                onMinus = { if (minutes > 1) onChange(minutes - 1) },
+                onPlus = { if (minutes < 60) onChange(minutes + 1) },
+            )
+        }
+        Hint(
+            if (minutes == 0) {
+                "Alarmen har bare en Stopp-knapp."
+            } else {
+                "Trykker du Slumre, ringer alarmen igjen om $minutes min. Trykker du Stopp, er den ferdig."
             },
         )
     }

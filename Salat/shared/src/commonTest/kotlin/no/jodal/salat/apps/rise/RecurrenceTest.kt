@@ -14,7 +14,7 @@ class RecurrenceTest {
         RiseAlarm(
             id = "a",
             title = "Test",
-            groupId = WakeUpGroupId,
+            groupId = "vekking",
             kind = AlarmKind.Alarm,
             hour = 6,
             minute = 30,

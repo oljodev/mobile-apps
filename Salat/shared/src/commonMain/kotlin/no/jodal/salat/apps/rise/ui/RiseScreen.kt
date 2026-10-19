@@ -69,7 +69,6 @@ import no.jodal.salat.apps.rise.RiseAlarm
 import no.jodal.salat.apps.rise.RiseGroup
 import no.jodal.salat.apps.rise.RiseSound
 import no.jodal.salat.apps.rise.RiseStore
-import no.jodal.salat.apps.rise.WakeUpGroupId
 import no.jodal.salat.apps.rise.formatCountdown
 import no.jodal.salat.apps.rise.formatDate
 import no.jodal.salat.apps.rise.formatTime
@@ -105,11 +104,6 @@ fun RiseScreen(bridge: NativeBridge, onBack: () -> Unit) {
             ) {
                 item(key = "hero") { Hero(store.data.alarms, store.data.groups, now) }
 
-                store.pendingAwakeCheck(now)?.let { alarm ->
-                    item(key = "awake") {
-                        AwakeCard(alarm.title.ifBlank { "Alarmen" }, onConfirm = store::confirmAwake, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp))
-                    }
-                }
                 store.scheduleError?.let { error ->
                     item(key = "error") { ErrorCard(error) }
                 }
@@ -364,37 +358,6 @@ private fun AlarmRow(alarm: RiseAlarm, now: LocalDateTime, onClick: () -> Unit, 
     }
 }
 
-/** Vises når en vekkealarm venter på at man bekrefter at man er oppe. Brukes også på forsiden av Salat. */
-@Composable
-fun AwakeCard(title: String, onConfirm: () -> Unit, modifier: Modifier = Modifier) {
-    val white = RisePalette.White
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(RisePalette.sunrise(darkTheme = false))
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = RisePalette.Gold, modifier = Modifier.size(26.dp))
-            Text("Er du oppe?", style = MaterialTheme.typography.titleLarge, color = white)
-        }
-        Text(
-            "$title ringer igjen om litt, helt til du bekrefter at du er oppe.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = white.copy(alpha = 0.9f),
-        )
-        Button(
-            onClick = onConfirm,
-            colors = ButtonDefaults.buttonColors(containerColor = white, contentColor = Color(0xFF6B3F86)),
-            modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
-        ) {
-            Text("Jeg er oppe!", style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
 @Composable
 private fun ErrorCard(message: String) {
     Text(
@@ -422,7 +385,6 @@ private fun newAlarm(store: RiseStore, now: LocalDateTime): RiseAlarm {
         minute = 0,
         repeat = Repeat.Once(now.date.plus(DatePeriod(days = 1))),
         sound = RiseSound.Gentle.id,
-        awakeCheck = group.id == WakeUpGroupId,
         startDate = now.date,
     )
 }

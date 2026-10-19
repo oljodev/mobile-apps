@@ -10,8 +10,6 @@ import kotlinx.serialization.Serializable
 data class RiseData(
     val groups: List<RiseGroup> = DefaultGroups,
     val alarms: List<RiseAlarm> = emptyList(),
-    /** Vekkealarmer man har trykket «Jeg er oppe» på, som nøkler fra [occurrenceKey]. */
-    val confirmedAwake: Set<String> = emptySet(),
 )
 
 @Serializable
@@ -25,9 +23,6 @@ val DefaultGroups = listOf(
     RiseGroup(id = "trening", name = "Trening"),
     RiseGroup(id = "annet", name = "Annet"),
 )
-
-/** Gruppen der «Sjekk at jeg er oppe» er på som standard. */
-const val WakeUpGroupId = "vekking"
 
 @Serializable
 enum class AlarmKind {
@@ -49,10 +44,8 @@ data class RiseAlarm(
     val repeat: Repeat,
     val enabled: Boolean = true,
     val sound: String = RiseSound.Default.id,
-    /** Minutter, eller 0 for ingen slumring. Gjelder bare alarmer. */
+    /** Hvor lenge Slumre-knappen utsetter alarmen, i minutter, eller 0 for ingen slumring. Gjelder bare alarmer. */
     val snoozeMinutes: Int = 10,
-    /** Ring igjen noen ganger etter alarmen, til man trykker «Jeg er oppe». Gjelder bare alarmer. */
-    val awakeCheck: Boolean = false,
     /** Minutter før tidspunktet et ekstra varsel skal komme, eller 0 for ingen. Gjelder bare varsler. */
     val earlyWarningMinutes: Int = 0,
     /** Første dag en gjentakelse gjelder. Brukes også til å telle «annenhver uke». */

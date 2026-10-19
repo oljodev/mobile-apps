@@ -17,7 +17,7 @@ struct SalatApp: App {
             if phase == .active {
                 // SideStore kan ha fornyet appen siden sist, så flytt påminnelsen til ny utløpsdato.
                 Notifications.shared.scheduleExpiryReminder()
-                // Fyll på alarmer i Rise og se etter «Jeg er oppe».
+                // Fyll på alarmer i Rise.
                 RiseStoreKt.refreshRise(bridge: IosNativeBridge.shared)
             }
         }

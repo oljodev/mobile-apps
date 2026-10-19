@@ -19,37 +19,18 @@ class RiseStore private constructor(private val bridge: NativeBridge) {
     var scheduleError by mutableStateOf<String?>(null)
         private set
 
-    /** Endres hver gang appen åpnes, så det som avhenger av klokka regnes ut på nytt. */
-    private var refreshCount by mutableStateOf(0)
-
     fun update(transform: (RiseData) -> RiseData) {
         val today = now().date
         data = transform(data).let { updated ->
             // Hoppede dager som har vært, trengs ikke lenger.
             updated.copy(alarms = updated.alarms.map { a -> a.copy(skippedDates = a.skippedDates.filter { it >= today }.toSet()) })
-                .withoutOldConfirmations(now())
         }
         bridge.saveText(StorageKey, json.encodeToString(RiseData.serializer(), data))
         reschedule()
     }
 
-    /** Kalles når appen åpnes, for å fylle på alarmer og se etter «Jeg er oppe». */
-    fun refresh() {
-        refreshCount++
-        reschedule()
-    }
-
-    /** Vekkealarmen som venter på «Jeg er oppe», eller `null`. */
-    fun pendingAwakeCheck(now: LocalDateTime = now()): RiseAlarm? {
-        refreshCount // Leses, så Compose regner ut på nytt når appen åpnes.
-        return data.pendingAwakeCheck(now, TimeZone.currentSystemDefault())?.first
-    }
-
-    /** Bekrefter at man er oppe. Da avlyses oppfølgingsalarmene som er igjen. */
-    fun confirmAwake() {
-        val (alarm, at) = data.pendingAwakeCheck(now(), TimeZone.currentSystemDefault()) ?: return
-        update { it.copy(confirmedAwake = it.confirmedAwake + occurrenceKey(alarm, at)) }
-    }
+    /** Kalles når appen åpnes, for å fylle på alarmer. */
+    fun refresh() = reschedule()
 
     fun now(): LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
