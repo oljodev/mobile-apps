@@ -10,10 +10,10 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 
 | Mini-app | Del | Hva den gjør |
 | --- | --- | --- |
-| 🍚 Rise | Appene dine | Kommer snart. Vekking, trening og påminnelser, og etter hvert en kalender. |
+| 🍚 Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser, slumring og «Sjekk at jeg er oppe». Se [planen](docs/rise.md). |
 | 🎙️ Kompis | Appene dine | Kommer snart. Snakk med en AI, med stemmen. |
 | ⏳ Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
-| 🔔 Varseltest | Verktøy | Sender testvarsler, så du kan sjekke at varsler og lyd virker. |
+| 🔔 Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 
 ## Installere
 
@@ -36,6 +36,7 @@ Salat/
 
 - **Kotlin snakker med Swift** gjennom grensesnittet `NativeBridge` ([NativeBridge.kt](shared/src/commonMain/kotlin/no/jodal/salat/NativeBridge.kt)). Swift implementerer det i [IosNativeBridge.swift](iosApp/Salat/IosNativeBridge.swift).
 - **Xcode-prosjektet ligger ikke i repoet.** Det genereres fra [project.yml](iosApp/project.yml) med XcodeGen når appen bygges.
+- **Testene** kjøres med `./gradlew :shared:desktopTest`.
 - **Appen bygges i GitHub Actions** ([salat.yml](../.github/workflows/salat.yml)) ved hver push til `main` som endrer noe i `Salat/`.
 
 ## Legge til en mini-app
