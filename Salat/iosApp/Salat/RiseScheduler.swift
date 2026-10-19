@@ -1,9 +1,16 @@
 import Foundation
 import UserNotifications
 
+/// Alt Rise vil ha planlagt. Samme felter som `RisePlan` i Kotlin.
+struct RisePlan: Decodable {
+    let items: [PlannedItem]
+    let activeAlarmIds: [String]
+}
+
 /// Én alarm eller ett varsel fra Rise. Samme felter som `PlannedItem` i Kotlin.
 struct PlannedItem: Decodable {
     let id: String
+    let alarmId: String
     let kind: String
     let fireAtMillis: Int64
     let title: String
@@ -35,11 +42,13 @@ enum RiseScheduler {
         Task { @MainActor in
             do {
                 let now = Date()
-                let items = try JSONDecoder()
-                    .decode([PlannedItem].self, from: Data(planJson.utf8))
-                    .filter { $0.fireAt > now }
+                let plan = try JSONDecoder().decode(RisePlan.self, from: Data(planJson.utf8))
+                let items = plan.items.filter { $0.fireAt > now }
                 await applyNotifications(items.filter { $0.kind == "notification" })
-                try await Alarms.shared.apply(items.filter { $0.kind == "alarm" })
+                try await Alarms.shared.apply(
+                    items.filter { $0.kind == "alarm" },
+                    activeAlarmIds: Set(plan.activeAlarmIds)
+                )
                 completion(nil)
             } catch {
                 completion(error.localizedDescription)

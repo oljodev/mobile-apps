@@ -7,11 +7,21 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.Serializable
 
-/** Én alarm eller ett varsel iOS skal planlegge. Sendes til Swift som JSON. */
+/** Alt Rise vil ha planlagt. Sendes til Swift som JSON. */
+@Serializable
+data class RisePlan(
+    val items: List<PlannedItem>,
+    /** Alarmer som finnes og er på. Slumring og ringing fra andre alarmer stoppes. */
+    val activeAlarmIds: List<String>,
+)
+
+/** Én alarm eller ett varsel iOS skal planlegge. */
 @Serializable
 data class PlannedItem(
     /** Stabil ID, så Swift kan se hva som allerede er planlagt. */
     val id: String,
+    /** ID-en til alarmen i Rise som dette hører til. */
+    val alarmId: String,
     val kind: AlarmKind,
     val fireAtMillis: Long,
     val title: String,
@@ -52,6 +62,7 @@ object RisePlanner {
         val title = alarm.title.ifBlank { if (alarm.kind == AlarmKind.Alarm) "Alarm" else "Påminnelse" }
         val main = PlannedItem(
             id = "${alarm.id}@$at",
+            alarmId = alarm.id,
             kind = alarm.kind,
             fireAtMillis = fireAt,
             title = title,

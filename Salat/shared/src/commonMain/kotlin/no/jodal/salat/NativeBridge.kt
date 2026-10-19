@@ -28,7 +28,7 @@ interface NativeBridge {
     fun saveText(key: String, value: String)
 
     /**
-     * Gjør alarmene og varslene fra Rise lik [planJson], en JSON-liste av `PlannedItem`.
+     * Gjør alarmene og varslene fra Rise lik [planJson], en `RisePlan` som JSON.
      * [onResult] kalles med en feilmelding, eller `null` hvis alt ble planlagt.
      */
     fun applyRiseSchedule(planJson: String, onResult: (String?) -> Unit)

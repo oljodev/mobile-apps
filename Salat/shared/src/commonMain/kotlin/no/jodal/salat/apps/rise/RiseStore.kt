@@ -35,8 +35,11 @@ class RiseStore private constructor(private val bridge: NativeBridge) {
     fun now(): LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
     private fun reschedule() {
-        val plan = RisePlanner.plan(data, now(), TimeZone.currentSystemDefault())
-        bridge.applyRiseSchedule(json.encodeToString(planSerializer, plan)) { error -> scheduleError = error }
+        val plan = RisePlan(
+            items = RisePlanner.plan(data, now(), TimeZone.currentSystemDefault()),
+            activeAlarmIds = data.alarms.filter { it.enabled }.map { it.id },
+        )
+        bridge.applyRiseSchedule(json.encodeToString(RisePlan.serializer(), plan)) { error -> scheduleError = error }
     }
 
     private fun load(): RiseData = bridge.loadText(StorageKey)
@@ -46,7 +49,6 @@ class RiseStore private constructor(private val bridge: NativeBridge) {
     companion object {
         private const val StorageKey = "rise.data"
         private val json = Json { ignoreUnknownKeys = true }
-        private val planSerializer = kotlinx.serialization.builtins.ListSerializer(PlannedItem.serializer())
         private var instance: RiseStore? = null
 
         fun get(bridge: NativeBridge): RiseStore = instance ?: RiseStore(bridge).also { instance = it }

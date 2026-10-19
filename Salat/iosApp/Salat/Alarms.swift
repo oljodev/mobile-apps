@@ -12,10 +12,17 @@ final class Alarms {
 
     private let manager = AlarmManager.shared
 
+    /// Hvilken alarm i Rise hver AlarmKit-alarm hører til, så slumring kan stoppes når alarmen slettes.
+    private var owners: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: "rise.alarmOwners") as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "rise.alarmOwners") }
+    }
+
     /// Gjør de planlagte alarmene lik `items`.
     ///
-    /// Alarmer som ringer eller slumrer akkurat nå, får være i fred.
-    func apply(_ items: [PlannedItem]) async throws {
+    /// Alarmer som ringer eller slumrer akkurat nå, får være i fred, så lenge alarmen de hører til
+    /// fortsatt finnes og er på (`activeAlarmIds`).
+    func apply(_ items: [PlannedItem], activeAlarmIds: Set<String>) async throws {
         let existing = try manager.alarms
         if items.isEmpty && existing.isEmpty { return }
         guard try await requestAuthorization() else { throw RiseError.alarmsNotAllowed }
@@ -24,8 +31,17 @@ final class Alarms {
         for item in items {
             wanted[Self.uuid(for: item)] = item
         }
-        for alarm in existing where alarm.state == .scheduled && wanted[alarm.id] == nil {
-            try manager.cancel(id: alarm.id)
+        var owners = self.owners
+        for (id, item) in wanted {
+            owners[id.uuidString] = item.alarmId
+        }
+        for alarm in existing where wanted[alarm.id] == nil {
+            let isScheduled = alarm.state == .scheduled
+            let ownerIsGone = owners[alarm.id.uuidString].map { !activeAlarmIds.contains($0) } ?? false
+            // Planlagte alarmer som ikke trengs lenger, og slumring eller ringing fra alarmer som er slettet eller skrudd av.
+            if isScheduled || ownerIsGone {
+                try manager.cancel(id: alarm.id)
+            }
         }
         let existingIDs = Set(existing.map(\.id))
         for (id, item) in wanted where !existingIDs.contains(id) {
@@ -37,6 +53,8 @@ final class Alarms {
             )
             _ = try await manager.schedule(id: id, configuration: configuration)
         }
+        let remaining = Set(try manager.alarms.map(\.id.uuidString))
+        self.owners = owners.filter { remaining.contains($0.key) }
     }
 
     // MARK: - Test
