@@ -28,4 +28,9 @@ private object PreviewBridge : NativeBridge {
 
     override fun sendTestNotification(delaySeconds: Int) =
         println("Forhåndsvisning: testvarsel om $delaySeconds sekunder")
+
+    override fun scheduleTestAlarm(delaySeconds: Int, snoozeMinutes: Int, onResult: (String?) -> Unit) {
+        println("Forhåndsvisning: testalarm om $delaySeconds sekunder, slumring $snoozeMinutes min")
+        onResult(null)
+    }
 }

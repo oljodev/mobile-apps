@@ -14,4 +14,10 @@ interface NativeBridge {
 
     /** Sender et testvarsel etter [delaySeconds] sekunder. */
     fun sendTestNotification(delaySeconds: Int)
+
+    /**
+     * Planlegger en testalarm med AlarmKit etter [delaySeconds] sekunder. [snoozeMinutes] = 0 gir ingen slumring.
+     * [onResult] kalles med en feilmelding, eller `null` hvis alarmen ble planlagt.
+     */
+    fun scheduleTestAlarm(delaySeconds: Int, snoozeMinutes: Int, onResult: (String?) -> Unit)
 }

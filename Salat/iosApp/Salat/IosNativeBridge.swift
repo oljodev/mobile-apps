@@ -15,4 +15,12 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func sendTestNotification(delaySeconds: Int32) {
         Notifications.shared.sendTestNotification(after: TimeInterval(delaySeconds))
     }
+
+    func scheduleTestAlarm(delaySeconds: Int32, snoozeMinutes: Int32, onResult: @escaping (String?) -> Void) {
+        Alarms.shared.scheduleTestAlarm(
+            after: TimeInterval(delaySeconds),
+            snoozeMinutes: Int(snoozeMinutes),
+            completion: onResult
+        )
+    }
 }

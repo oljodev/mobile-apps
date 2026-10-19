@@ -22,6 +22,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         CADisableMinimumFrameDurationOnPhone: true
+        NSAlarmKitUsageDescription: Rise bruker alarmer for å vekke deg og minne deg på ting, også når telefonen står på lydløs.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.jodal.salat
