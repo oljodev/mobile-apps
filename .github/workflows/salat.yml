@@ -5,14 +5,21 @@ on:
     branches: [main]
     paths:
       - "Salat/**"
+      - "!Salat/**/*.md"
       - ".github/workflows/salat.yml"
       - ".github/scripts/update_sidestore_source.py"
   pull_request:
     paths:
       - "Salat/**"
+      - "!Salat/**/*.md"
       - ".github/workflows/salat.yml"
       - ".github/scripts/update_sidestore_source.py"
   workflow_dispatch:
+
+# Nye pushes til en PR avbryter bygget som allerede går. Bygg på main får alltid gå ferdig.
+concurrency:
+  group: salat-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -45,6 +52,10 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: Salat/iosApp
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_ENV_HINTS: 1
         run: |
           brew install xcodegen
           xcodegen generate
@@ -60,6 +71,7 @@ jobs:
             -derivedDataPath build/DerivedData \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
