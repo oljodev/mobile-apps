@@ -16,13 +16,12 @@ data class RiseData(
 data class RiseGroup(
     val id: String,
     val name: String,
-    val emoji: String,
 )
 
 val DefaultGroups = listOf(
-    RiseGroup(id = "vekking", name = "Vekking", emoji = "☀️"),
-    RiseGroup(id = "trening", name = "Trening", emoji = "💪"),
-    RiseGroup(id = "annet", name = "Annet", emoji = "📌"),
+    RiseGroup(id = "vekking", name = "Vekking"),
+    RiseGroup(id = "trening", name = "Trening"),
+    RiseGroup(id = "annet", name = "Annet"),
 )
 
 /** Gruppen der «Sjekk at jeg er oppe» er på som standard. */

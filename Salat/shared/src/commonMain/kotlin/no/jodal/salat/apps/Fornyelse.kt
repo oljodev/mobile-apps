@@ -14,7 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.HourglassTop
 import no.jodal.salat.MiniApp
+import no.jodal.salat.MiniAppIcon
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.ui.SalatColors
 import no.jodal.salat.ui.formatTimeLeft
@@ -22,11 +25,11 @@ import no.jodal.salat.ui.signingTimeLeft
 
 val Fornyelse = MiniApp(
     title = "Fornyelse",
-    emoji = "⏳",
     description = "Når appen må fornyes i SideStore",
     color = SalatColors.Leaf,
     section = MiniApp.Section.Tools,
-    content = { bridge -> FornyelseScreen(bridge) },
+    icon = MiniAppIcon.Symbol(Icons.Rounded.HourglassTop),
+    content = { FornyelseScreen(it.bridge) },
 )
 
 @Composable

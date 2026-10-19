@@ -62,7 +62,7 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
             Text("Grupper", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             TextButton(onClick = {
                 close {
-                    val cleaned = groups.map { it.copy(name = it.name.trim().ifEmpty { "Uten navn" }, emoji = it.emoji.ifBlank { "📌" }) }
+                    val cleaned = groups.map { it.copy(name = it.name.trim().ifEmpty { "Uten navn" }) }
                     store.update { data ->
                         // Alarmer i slettede grupper flyttes til den første gruppen.
                         val ids = cleaned.map { it.id }.toSet()
@@ -92,7 +92,7 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
                 }
             }
             TextButton(
-                onClick = { groups = groups + RiseGroup(id = randomId(), name = "", emoji = "📌") },
+                onClick = { groups = groups + RiseGroup(id = randomId(), name = "") },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("+  Ny gruppe", style = MaterialTheme.typography.titleMedium)
@@ -112,18 +112,6 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
 private fun GroupRow(group: RiseGroup, canDelete: Boolean, onChange: (RiseGroup) -> Unit, onDelete: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceVariant),
-        ) {
-            BasicTextField(
-                value = group.emoji,
-                onValueChange = { onChange(group.copy(emoji = it.takeLast(2))) },
-                singleLine = true,
-                textStyle = TextStyle(fontSize = 22.sp, textAlign = TextAlign.Center),
-                cursorBrush = SolidColor(colors.primary),
-            )
-        }
         BasicTextField(
             value = group.name,
             onValueChange = { onChange(group.copy(name = it)) },

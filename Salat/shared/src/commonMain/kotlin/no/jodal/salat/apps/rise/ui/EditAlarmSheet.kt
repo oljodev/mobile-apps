@@ -19,7 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.Icon
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -134,7 +137,7 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
 
             SettingsSection("Type") {
                 SegmentedControl(
-                    options = listOf("⏰ Alarm", "🔔 Varsel"),
+                    options = listOf("Alarm", "Varsel"),
                     selected = draft.kind.ordinal,
                     onSelect = { draft = draft.copy(kind = AlarmKind.entries[it]) },
                 )
@@ -152,7 +155,7 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
             SettingsSection("Gruppe") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (group in store.data.groups) {
-                        ChipButton("${group.emoji}  ${group.name}", selected = draft.groupId == group.id) {
+                        ChipButton(group.name, selected = draft.groupId == group.id) {
                             draft = draft.copy(
                                 groupId = group.id,
                                 awakeCheck = if (isNew) group.id == WakeUpGroupId else draft.awakeCheck,
@@ -459,7 +462,7 @@ private fun SoundSection(selected: String, onSelect: (RiseSound) -> Unit) {
                             },
                         ),
                 ) {
-                    if (isSelected) Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    if (isSelected) Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                 }
             }
         }

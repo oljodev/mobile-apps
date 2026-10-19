@@ -2,26 +2,42 @@ package no.jodal.salat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import org.jetbrains.compose.resources.DrawableResource
-import no.jodal.salat.apps.Kompis
+import androidx.compose.ui.graphics.vector.ImageVector
 import no.jodal.salat.apps.Fornyelse
+import no.jodal.salat.apps.Kompis
 import no.jodal.salat.apps.Rise
 import no.jodal.salat.apps.Varseltest
+import org.jetbrains.compose.resources.DrawableResource
 
 /** En «app inni appen» som vises på forsiden. */
 class MiniApp(
     val title: String,
-    val emoji: String,
     val description: String,
-    /** Bilde som brukes i stedet for [emoji] på forsiden, hvis mini-appen har en egen logo. */
-    val icon: DrawableResource? = null,
+    val icon: MiniAppIcon,
     /** Fargen på kortet og toppen av mini-appen. */
     val color: Color,
     val section: Section = Section.Apps,
+    /** Om mini-appen tegner sin egen topplinje med tilbakeknapp, i stedet for Salat sin. */
+    val customTopBar: Boolean = false,
     /** Innholdet i mini-appen, eller `null` hvis den ikke er laget ennå. */
-    val content: (@Composable (NativeBridge) -> Unit)? = null,
+    val content: (@Composable (MiniAppContext) -> Unit)? = null,
 ) {
     enum class Section { Apps, Tools }
+}
+
+/** Det en mini-app får tilgang til. */
+class MiniAppContext(
+    val bridge: NativeBridge,
+    /** Går tilbake til forsiden. */
+    val onBack: () -> Unit,
+)
+
+sealed interface MiniAppIcon {
+    /** En egen logo, som Rise sin risbolle. */
+    data class Logo(val image: DrawableResource) : MiniAppIcon
+
+    /** Et ikon fra ikonbiblioteket. */
+    data class Symbol(val vector: ImageVector) : MiniAppIcon
 }
 
 /** Alle mini-appene, i den rekkefølgen de vises på forsiden. Nye mini-apper legges til her. */

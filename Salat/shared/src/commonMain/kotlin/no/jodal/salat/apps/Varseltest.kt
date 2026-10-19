@@ -14,17 +14,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.NotificationsActive
 import no.jodal.salat.MiniApp
+import no.jodal.salat.MiniAppIcon
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.ui.SalatColors
 
 val Varseltest = MiniApp(
     title = "Varseltest",
-    emoji = "🔔",
     description = "Sjekk at varsler, alarmer og lyd virker",
     color = SalatColors.Cheek,
     section = MiniApp.Section.Tools,
-    content = { bridge -> VarseltestScreen(bridge) },
+    icon = MiniAppIcon.Symbol(Icons.Rounded.NotificationsActive),
+    content = { VarseltestScreen(it.bridge) },
 )
 
 @Composable

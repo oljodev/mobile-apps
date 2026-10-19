@@ -9,7 +9,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,17 +21,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import no.jodal.salat.ui.BackButton
 import no.jodal.salat.ui.HomeScreen
+import no.jodal.salat.ui.MiniAppIconImage
 import no.jodal.salat.ui.SalatTheme
 import no.jodal.salat.ui.tint
 
@@ -64,12 +68,25 @@ fun SalatApp(bridge: NativeBridge, darkTheme: Boolean = isSystemInDarkTheme()) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MiniAppScreen(app: MiniApp, bridge: NativeBridge, darkTheme: Boolean, onBack: () -> Unit) {
+    val context = remember(bridge, onBack) { MiniAppContext(bridge, onBack) }
+    if (app.customTopBar) {
+        Box {
+            app.content?.invoke(context)
+            BackSwipeEdge(onBack)
+        }
+        return
+    }
     Box {
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("${app.emoji}  ${app.title}") },
-                    navigationIcon = { TextButton(onClick = onBack) { Text("‹ Salat") } },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MiniAppIconImage(app.icon, size = 22.dp)
+                            Text(app.title)
+                        }
+                    },
+                    navigationIcon = { BackButton(onBack) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.tint(app.color, darkTheme),
                     ),
@@ -77,7 +94,7 @@ private fun MiniAppScreen(app: MiniApp, bridge: NativeBridge, darkTheme: Boolean
             },
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
-                app.content?.invoke(bridge)
+                app.content?.invoke(context)
             }
         }
         BackSwipeEdge(onBack)

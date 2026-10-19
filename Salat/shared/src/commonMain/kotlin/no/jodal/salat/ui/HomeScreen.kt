@@ -28,6 +28,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +44,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -49,6 +54,7 @@ import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import no.jodal.salat.MiniApp
+import no.jodal.salat.MiniAppIcon
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.Fornyelse
 import no.jodal.salat.apps.rise.RiseStore
@@ -142,11 +148,14 @@ private fun RenewalChip(bridge: NativeBridge, onClick: () -> Unit) {
         contentColor = if (urgent) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.clip(CircleShape).clickable(onClick = onClick),
     ) {
-        Text(
-            "⏳  $text",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Icon(Icons.Rounded.HourglassTop, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(text, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -217,15 +226,15 @@ private fun ToolRow(app: MiniApp, darkTheme: Boolean, onClick: () -> Unit) {
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tint(app.color, darkTheme)),
+            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(app.color),
         ) {
-            Text(app.emoji, fontSize = 22.sp)
+            MiniAppIconImage(app.icon, size = if (app.icon is MiniAppIcon.Logo) 36.dp else 22.dp, tint = IconOnPastel)
         }
         Column(Modifier.weight(1f)) {
             Text(app.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
             Text(app.description, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         }
-        Text("›", fontSize = 26.sp, color = colors.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
 }
 
@@ -238,14 +247,13 @@ fun AppIcon(app: MiniApp, size: Int) {
             .clip(RoundedCornerShape((size * 0.3f).dp))
             .background(app.color),
     ) {
-        val icon = app.icon
-        if (icon != null) {
-            Image(painterResource(icon), contentDescription = null, modifier = Modifier.size((size * 0.8f).dp))
-        } else {
-            Text(app.emoji, fontSize = (size * 0.5f).sp)
-        }
+        val iconSize = if (app.icon is MiniAppIcon.Logo) size * 0.8f else size * 0.5f
+        MiniAppIconImage(app.icon, size = iconSize.dp, tint = IconOnPastel)
     }
 }
+
+/** Ikonfarge som er lett å se på de lyse app-fargene, i både lys og mørk modus. */
+private val IconOnPastel = Color(0xFF2A2318)
 
 /** Krymper litt når man trykker, så det føles som en knapp. */
 @Composable
@@ -273,10 +281,10 @@ private fun Modifier.bleedHorizontally(amount: Dp): Modifier = layout { measurab
 private fun greeting(): String {
     val hour = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).hour
     return when (hour) {
-        in 5..9 -> "God morgen ☀️"
-        in 10..11 -> "God formiddag 🌤️"
-        in 12..17 -> "God ettermiddag 🌿"
-        in 18..22 -> "God kveld 🌆"
-        else -> "God natt 🌙"
+        in 5..9 -> "God morgen"
+        in 10..11 -> "God formiddag"
+        in 12..17 -> "God ettermiddag"
+        in 18..22 -> "God kveld"
+        else -> "God natt"
     }
 }
