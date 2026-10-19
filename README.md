@@ -19,20 +19,27 @@ Each app folder holds the source code for that app and a short README about it.
 
 | App | What it is |
 | --- | --- |
-| [🥗 Salat](Salat/) | An "everything" app with many small apps inside it. [Download](https://github.com/oljodev/mobile-apps/releases/tag/salat-latest) |
+| [🥗 Salat](Salat/) | An "everything" app with many small apps inside it. |
 
 ## How the apps are built
 
 I don't have a Mac, so the apps are built in the cloud with GitHub Actions. This repo is public, which means the macOS runners are free to use.
 
-Each build produces an **unsigned `.ipa`** file, which you can download from the workflow run's artifacts (or from a release). SideStore signs the app with your own Apple ID when you install it, so no paid Apple Developer account is needed.
+Each build from `main` gets a new version number and is published as a GitHub release with an **unsigned `.ipa`** file. SideStore signs the app with your own Apple ID when you install it, so no paid Apple Developer account is needed.
+
+The build also updates a **SideStore source**: a `source.json` file in the [`sidestore` release](../../releases/tag/sidestore) that lists the newest version of each app. SideStore checks it for updates.
 
 ## Installing an app with SideStore
 
 1. Set up SideStore on your iPhone (see the [SideStore docs](https://docs.sidestore.io)).
-2. Download the app's `.ipa` from GitHub Actions or Releases to your phone.
-3. Open SideStore, go to **My Apps**, tap **+** and pick the `.ipa`.
+2. In SideStore, go to **Sources**, tap **+** and add this source:
+   ```
+   https://github.com/oljodev/salat/releases/download/sidestore/source.json
+   ```
+3. Open the source, pick the app and tap **Get** (or **Free**).
 4. Refresh your apps in SideStore at least once every 7 days. Apps signed with a free Apple ID stop opening after 7 days.
+
+When a new version has been built, it shows up under **My Apps** in SideStore. Tap **Update** to install it. The app keeps its data.
 
 ### Limits of a free Apple ID
 

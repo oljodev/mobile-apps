@@ -17,7 +17,7 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 
 ## Installere
 
-Last ned `Salat.ipa` fra [siste bygg](https://github.com/oljodev/mobile-apps/releases/tag/salat-latest) på telefonen, og installer den med SideStore. Se [README-en i roten](../README.md) for detaljer.
+Legg til SideStore-kilden og installer Salat derfra, som beskrevet i [README-en i roten](../README.md#installing-an-app-with-sidestore). Da kommer nye versjoner som oppdateringer i SideStore.
 
 Påminnelsen om fornyelse flyttes hver gang du åpner Salat. Har du ikke åpnet Salat siden SideStore fornyet den, kan du derfor få påminnelsen selv om appen allerede er fornyet.
 
