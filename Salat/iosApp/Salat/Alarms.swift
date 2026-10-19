@@ -32,7 +32,7 @@ final class Alarms {
         }
         let backupID = awakeBackupID
         for alarm in existing where alarm.state == .scheduled && wanted[alarm.id] == nil && alarm.id != backupID {
-            try await manager.cancel(id: alarm.id)
+            try manager.cancel(id: alarm.id)
         }
         let existingIDs = Set(existing.map(\.id))
         for (id, item) in wanted where !existingIDs.contains(id) {
@@ -74,9 +74,7 @@ final class Alarms {
         defaults.removeObject(forKey: awakeTitleKey)
         defaults.removeObject(forKey: awakeBackupKey)
         guard let backupID else { return }
-        Task {
-            try? await manager.cancel(id: backupID)
-        }
+        try? manager.cancel(id: backupID)
     }
 
     private var awakeBackupID: UUID? {
