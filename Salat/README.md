@@ -12,6 +12,7 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 | --- | --- | --- |
 | Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser og slumring. Se [planen](docs/rise.md). |
 | Kompis | Appene dine | Snakk med Gemini Live med stemmen, også med skjermen av. Samtalene lagres og kan fortsettes. Bruker `gemini-3.8-live`, og husker samtalen som tekst for å holde prisen nede. |
+| Ekko | Appene dine | Lyder og sitater fra YouTube Shorts, Snapchat Spotlight og videoer på telefonen. Klipp ut biten du vil ha, gi den navn og lag spillelister. Spiller med skjermen av, og kan styres fra låseskjermen. |
 | Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
 | Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 
@@ -30,11 +31,12 @@ Salat/
 │       ├── commonMain/      Felles kode: forsiden (ui/), mini-appene (apps/) og logoer (composeResources/)
 │       ├── iosMain/         Kobler Compose-UI-et til iOS
 │       └── desktopMain/     Forhåndsvisning på Linux
-└── iosApp/                  Swift: oppstart, varsler, signeringsinfo
+└── iosApp/                  Swift: oppstart, varsler, alarmer, lyd og signeringsinfo
     └── project.yml          XcodeGen-oppsett for Xcode-prosjektet
 ```
 
 - **Kotlin snakker med Swift** gjennom grensesnittet `NativeBridge` ([NativeBridge.kt](shared/src/commonMain/kotlin/no/jodal/salat/NativeBridge.kt)). Swift implementerer det i [IosNativeBridge.swift](iosApp/Salat/IosNativeBridge.swift).
+- **Ekko henter lyd fra YouTube med [YouTubeKit](https://github.com/alexeichhorn/YouTubeKit)**, som legges til som Swift-pakke i [project.yml](iosApp/project.yml). Slutter YouTube-henting å virke, er det ofte nok å bygge på nytt, så den nyeste versjonen av YouTubeKit blir med.
 - **Xcode-prosjektet ligger ikke i repoet.** Det genereres fra [project.yml](iosApp/project.yml) med XcodeGen når appen bygges.
 - **Testene** kjøres med `./gradlew :shared:desktopTest`.
 - **Appen bygges i GitHub Actions** ([salat.yml](../.github/workflows/salat.yml)) ved hver push til `main` som endrer noe i `Salat/`.
