@@ -33,8 +33,11 @@ class MiniAppContext(
 )
 
 sealed interface MiniAppIcon {
-    /** En egen logo, som Rise sin risbolle. */
-    data class Logo(val image: DrawableResource) : MiniAppIcon
+    /**
+     * En egen logo, som Rise sin risbolle. Er logoen selv et ferdig app-ikon, som Kompis sin,
+     * fyller den hele firkanten ([fullBleed]) i stedet for å ligge på mini-appens farge.
+     */
+    data class Logo(val image: DrawableResource, val fullBleed: Boolean = false) : MiniAppIcon
 
     /** Et ikon fra ikonbiblioteket. */
     data class Symbol(val vector: ImageVector) : MiniAppIcon

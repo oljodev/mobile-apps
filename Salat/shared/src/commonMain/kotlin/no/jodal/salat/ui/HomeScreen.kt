@@ -240,8 +240,13 @@ fun AppIcon(app: MiniApp, size: Int) {
             .clip(RoundedCornerShape((size * 0.3f).dp))
             .background(app.color),
     ) {
-        val iconSize = if (app.icon is MiniAppIcon.Logo) size * 0.8f else size * 0.5f
-        MiniAppIconImage(app.icon, size = iconSize.dp, tint = IconOnPastel)
+        val icon = app.icon
+        val iconSize = when {
+            icon is MiniAppIcon.Logo && icon.fullBleed -> size.toFloat()
+            icon is MiniAppIcon.Logo -> size * 0.8f
+            else -> size * 0.5f
+        }
+        MiniAppIconImage(icon, size = iconSize.dp, tint = IconOnPastel)
     }
 }
 

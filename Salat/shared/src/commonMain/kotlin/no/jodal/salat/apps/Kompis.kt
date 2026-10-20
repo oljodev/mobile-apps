@@ -10,7 +10,7 @@ import no.jodal.salat.ui.SalatColors
 val Kompis = MiniApp(
     title = "Kompis",
     description = "Snakk med en AI, med stemmen",
-    icon = MiniAppIcon.Logo(Res.drawable.kompis_logo),
+    icon = MiniAppIcon.Logo(Res.drawable.kompis_logo, fullBleed = true),
     color = SalatColors.Lavender,
     customTopBar = true,
     content = { KompisScreen(it.bridge, onBack = it.onBack) },
