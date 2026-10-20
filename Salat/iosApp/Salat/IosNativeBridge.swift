@@ -1,5 +1,6 @@
 import Foundation
 import Shared
+import UIKit
 
 /// Swift-implementasjonen av `NativeBridge` fra Kotlin.
 final class IosNativeBridge: NSObject, NativeBridge {
@@ -55,6 +56,7 @@ final class IosNativeBridge: NSObject, NativeBridge {
     }
 
     func startLiveSession(configJson: String, listener: LiveListener) {
+        EkkoAudio.shared.pauseForOtherAudio()
         LiveSession.shared.start(configJson: configJson, listener: listener)
     }
 
@@ -68,5 +70,67 @@ final class IosNativeBridge: NSObject, NativeBridge {
 
     func rollLiveSession(historyJson: String) {
         LiveSession.shared.roll(historyJson: historyJson)
+    }
+
+    func ekkoImportYouTube(clipId: String, videoId: String, listener: EkkoImportListener) {
+        EkkoImport.shared.youTube(clipId: clipId, videoId: videoId, listener: listener)
+    }
+
+    func ekkoImportWeb(clipId: String, url: String, listener: EkkoImportListener) {
+        EkkoImport.shared.web(clipId: clipId, url: url, listener: listener)
+    }
+
+    func ekkoImportFile(clipId: String, fromPhotos: Bool, listener: EkkoImportListener) {
+        EkkoImport.shared.file(clipId: clipId, fromPhotos: fromPhotos, listener: listener)
+    }
+
+    func ekkoCancelImport() {
+        EkkoImport.shared.cancel()
+    }
+
+    func ekkoDeleteAudio(clipId: String) {
+        EkkoFiles.delete(clipId)
+    }
+
+    func ekkoPasteboardText() -> String? {
+        UIPasteboard.general.url?.absoluteString ?? UIPasteboard.general.string
+    }
+
+    func ekkoPlay(
+        clipId: String,
+        startSeconds: Double,
+        endSeconds: Double,
+        fromSeconds: Double,
+        title: String,
+        artist: String,
+        lockScreen: Bool,
+        listener: EkkoPlayerListener
+    ) {
+        EkkoAudio.shared.play(
+            clipId: clipId,
+            start: startSeconds,
+            end: endSeconds,
+            from: fromSeconds,
+            title: title,
+            artist: artist,
+            lockScreen: lockScreen,
+            listener: listener
+        )
+    }
+
+    func ekkoPause() {
+        EkkoAudio.shared.pause()
+    }
+
+    func ekkoResume() {
+        EkkoAudio.shared.resume()
+    }
+
+    func ekkoSeek(seconds: Double) {
+        EkkoAudio.shared.seek(to: seconds)
+    }
+
+    func ekkoStop() {
+        EkkoAudio.shared.stop()
     }
 }

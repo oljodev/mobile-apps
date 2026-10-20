@@ -65,4 +65,45 @@ private object PreviewBridge : NativeBridge {
     override fun setLiveMuted(muted: Boolean) = Unit
 
     override fun rollLiveSession(historyJson: String) = Unit
+
+    // Ekko: later som lyden er hentet med en gang, med en tilfeldig lydbølge.
+
+    override fun ekkoImportYouTube(clipId: String, videoId: String, listener: EkkoImportListener) =
+        fakeImport("YouTube Shorts $videoId", listener)
+
+    override fun ekkoImportWeb(clipId: String, url: String, listener: EkkoImportListener) = fakeImport("Spotlight", listener)
+
+    override fun ekkoImportFile(clipId: String, fromPhotos: Boolean, listener: EkkoImportListener) =
+        fakeImport(if (fromPhotos) "Video" else "Lydfil", listener)
+
+    private fun fakeImport(title: String, listener: EkkoImportListener) {
+        val waveform = List(120) { i -> (0.25 + 0.6 * kotlin.math.abs(kotlin.math.sin(i * 0.37)) * kotlin.random.Random.nextDouble(0.5, 1.0)).toFloat() }
+        val wave = waveform.joinToString(",")
+        listener.onImported("""{"title":"$title","durationSeconds":24.0,"waveform":[$wave]}""")
+    }
+
+    override fun ekkoCancelImport() = Unit
+
+    override fun ekkoDeleteAudio(clipId: String) = Unit
+
+    override fun ekkoPasteboardText(): String? = null
+
+    override fun ekkoPlay(
+        clipId: String,
+        startSeconds: Double,
+        endSeconds: Double,
+        fromSeconds: Double,
+        title: String,
+        artist: String,
+        lockScreen: Boolean,
+        listener: EkkoPlayerListener,
+    ) = println("Forhåndsvisning: spiller $title fra $fromSeconds til $endSeconds")
+
+    override fun ekkoPause() = Unit
+
+    override fun ekkoResume() = Unit
+
+    override fun ekkoSeek(seconds: Double) = Unit
+
+    override fun ekkoStop() = Unit
 }

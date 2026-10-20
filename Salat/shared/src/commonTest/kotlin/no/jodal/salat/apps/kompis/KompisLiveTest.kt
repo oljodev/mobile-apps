@@ -6,8 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
-import no.jodal.salat.LiveListener
-import no.jodal.salat.NativeBridge
+import no.jodal.salat.FakeBridge
 import no.jodal.salat.apps.kompis.ui.LiveStatus
 
 class KompisLiveTest {
@@ -125,35 +124,5 @@ class KompisLiveTest {
     fun titles() {
         assertEquals("Kan du hjelpe meg med middag", KompisLive.titleFrom("Kan du hjelpe meg med middag? Jeg har egg."))
         assertEquals(46, KompisLive.titleFrom("a".repeat(80)).length)
-    }
-}
-
-private object FakeBridge : NativeBridge {
-    private val storage = mutableMapOf<String, String>()
-    var startedWith: String? = null
-    var rolledWith: String? = null
-
-    override fun signingExpiresAtMillis(): Long? = null
-    override fun scheduleExpiryReminder() = Unit
-    override fun sendTestNotification(delaySeconds: Int) = Unit
-    override fun scheduleTestAlarm(delaySeconds: Int, snoozeMinutes: Int, onResult: (String?) -> Unit) = Unit
-    override fun loadText(key: String): String? = storage[key]
-    override fun saveText(key: String, value: String) {
-        storage[key] = value
-    }
-    override fun loadSecret(key: String): String? = storage["secret.$key"]
-    override fun saveSecret(key: String, value: String) {
-        storage["secret.$key"] = value
-    }
-    override fun applyRiseSchedule(planJson: String, onResult: (String?) -> Unit) = Unit
-    override fun previewSound(sound: String) = Unit
-    override fun stopSoundPreview() = Unit
-    override fun startLiveSession(configJson: String, listener: LiveListener) {
-        startedWith = configJson
-    }
-    override fun stopLiveSession() = Unit
-    override fun setLiveMuted(muted: Boolean) = Unit
-    override fun rollLiveSession(historyJson: String) {
-        rolledWith = historyJson
     }
 }

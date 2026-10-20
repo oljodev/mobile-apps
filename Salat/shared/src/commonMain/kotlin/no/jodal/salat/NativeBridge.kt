@@ -59,6 +59,81 @@ interface NativeBridge {
      * tekst. Det er billigere enn at Gemini husker samtalen som lyd. Skjer først når det er stille.
      */
     fun rollLiveSession(historyJson: String)
+
+    // Ekko. Lyden til hver lyd ligger i en fil som heter det samme som lyden sin id.
+
+    /** Henter lyden fra YouTube-videoen [videoId] og lagrer den som [clipId]. */
+    fun ekkoImportYouTube(clipId: String, videoId: String, listener: EkkoImportListener)
+
+    /** Leter etter en video på nettsiden [url] (f.eks. Snapchat Spotlight), og lagrer lyden som [clipId]. */
+    fun ekkoImportWeb(clipId: String, url: String, listener: EkkoImportListener)
+
+    /** Lar brukeren velge en video fra Bilder ([fromPhotos]) eller en lyd- eller videofil fra Filer. */
+    fun ekkoImportFile(clipId: String, fromPhotos: Boolean, listener: EkkoImportListener)
+
+    /** Avbryter hentingen som pågår. Listeneren får `onFailed("")`. */
+    fun ekkoCancelImport()
+
+    /** Sletter lydfilen til [clipId]. */
+    fun ekkoDeleteAudio(clipId: String)
+
+    /** Det som ligger på utklippstavlen, eller `null`. iOS kan spørre brukeren om lov først. */
+    fun ekkoPasteboardText(): String?
+
+    /**
+     * Spiller av [clipId] fra [fromSeconds] til [endSeconds] i lydfilen, og viser [title] og [artist]
+     * på låseskjermen. [startSeconds] er der utsnittet begynner, så låseskjermen kan vise tiden i lyden.
+     * Erstatter det som spilles nå. [lockScreen] = false brukes når man hører på et utsnitt mens man klipper.
+     */
+    fun ekkoPlay(
+        clipId: String,
+        startSeconds: Double,
+        endSeconds: Double,
+        fromSeconds: Double,
+        title: String,
+        artist: String,
+        lockScreen: Boolean,
+        listener: EkkoPlayerListener,
+    )
+
+    fun ekkoPause()
+
+    fun ekkoResume()
+
+    /** Hopper til [seconds] i lydfilen. */
+    fun ekkoSeek(seconds: Double)
+
+    fun ekkoStop()
+}
+
+/** Hvordan det går med å hente en lyd. Kalles alltid på hovedtråden. */
+interface EkkoImportListener {
+    /** Hvor langt nedlastingen har kommet, fra 0 til 1. */
+    fun onProgress(fraction: Float)
+
+    /** Lyden er lagret. [resultJson] er en `ImportedAudio` som JSON. */
+    fun onImported(resultJson: String)
+
+    /** Noe gikk galt. Tom [message] betyr at brukeren avbrøt. */
+    fun onFailed(message: String)
+}
+
+/** Det som skjer med avspillingen i Ekko. Kalles alltid på hovedtråden. */
+interface EkkoPlayerListener {
+    fun onPlaying(playing: Boolean)
+
+    /** Hvor langt man har kommet, i sekunder fra starten av lydfilen. */
+    fun onPosition(seconds: Double)
+
+    /** Lyden er spilt ferdig. */
+    fun onFinished()
+
+    /** Neste og forrige fra låseskjermen, kontrollsenteret eller AirPods. */
+    fun onNext()
+
+    fun onPrevious()
+
+    fun onError(message: String)
 }
 
 /** Det Swift forteller om en samtale med Gemini Live. Kalles alltid på hovedtråden. */

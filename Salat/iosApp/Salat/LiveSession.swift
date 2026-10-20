@@ -37,7 +37,7 @@ final class LiveSession {
     /// Øker for hver tilkobling, så meldinger fra en gammel tilkobling kan ignoreres.
     private var connection = 0
     private var isReady = false
-    private var isRunning = false
+    private(set) var isRunning = false
     private var isMuted = false
     private var resumptionHandle: String?
     private var reconnectAttempts = 0
