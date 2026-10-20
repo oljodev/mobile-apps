@@ -50,6 +50,7 @@ import no.jodal.salat.resources.Res
 import no.jodal.salat.resources.kompis_logo
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import no.jodal.salat.DeepLinks
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.kompis.Conversation
 import no.jodal.salat.apps.kompis.KompisLive
@@ -91,6 +93,14 @@ fun KompisScreen(bridge: NativeBridge, onBack: () -> Unit) {
         var destination by remember { mutableStateOf<KompisDestination>(KompisDestination.Home) }
         var showSettings by remember { mutableStateOf(false) }
         var showTranscript by remember { mutableStateOf(false) }
+
+        // «Snakk med Kompis» fra widgeten eller kontrollsenteret starter en samtale med en gang.
+        LaunchedEffect(DeepLinks.pending) {
+            if (DeepLinks.consume("kompis", "start")) {
+                if (!live.isActive) live.start(continuing = null)
+                destination = KompisDestination.Live(live.conversationId)
+            }
+        }
 
         AnimatedContent(
             targetState = destination,

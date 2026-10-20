@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +42,14 @@ import no.jodal.salat.ui.tint
 fun SalatApp(bridge: NativeBridge, darkTheme: Boolean = isSystemInDarkTheme()) {
     SalatTheme(darkTheme) {
         var openApp by remember { mutableStateOf<MiniApp?>(null) }
+        // En lenke fra en widget åpner mini-appen. Har lenken noe mer å gjøre, tar mini-appen seg av det.
+        val link = DeepLinks.pending
+        LaunchedEffect(link) {
+            if (link == null) return@LaunchedEffect
+            val app = miniApps.firstOrNull { it.title.lowercase() == link.app }
+            if (app != null) openApp = app
+            if (app == null || link.action == null) DeepLinks.clear()
+        }
         AnimatedContent(
             targetState = openApp,
             transitionSpec = {
