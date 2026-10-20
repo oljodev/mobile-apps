@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -76,8 +77,10 @@ private fun EkkoSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.()
 fun ClipActionsSheet(
     clip: Clip,
     playlist: Playlist?,
+    onSoundboard: Boolean,
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
+    onToggleSoundboard: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onRemoveFromPlaylist: () -> Unit,
     onDelete: () -> Unit,
@@ -101,6 +104,11 @@ fun ClipActionsSheet(
         Hairline(Modifier.padding(vertical = 8.dp))
         SheetAction(Icons.Rounded.ContentCut, "Klipp og endre navn", onEdit)
         SheetAction(Icons.AutoMirrored.Rounded.PlaylistAdd, "Legg til i spilleliste", onAddToPlaylist)
+        SheetAction(
+            Icons.Rounded.Widgets,
+            if (onSoundboard) "Fjern fra lydbrettet" else "Legg på lydbrettet i widgeten",
+            onToggleSoundboard,
+        )
         if (playlist != null) {
             SheetAction(Icons.Rounded.RemoveCircleOutline, "Fjern fra «${playlist.name}»", onRemoveFromPlaylist)
         }

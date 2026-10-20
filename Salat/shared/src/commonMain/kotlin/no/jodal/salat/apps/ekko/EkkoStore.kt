@@ -18,7 +18,18 @@ class EkkoStore private constructor(private val bridge: NativeBridge) {
     fun update(transform: (EkkoData) -> EkkoData) {
         data = transform(data)
         bridge.saveText(StorageKey, json.encodeToString(EkkoData.serializer(), data))
+        publishWidget()
     }
+
+    /** Gir widgetene lydene og lydbrettet. Sendes bare når noe widgetene viser, er endret. */
+    fun publishWidget() {
+        val widget = widgetJson(this)
+        if (widget == publishedWidget) return
+        publishedWidget = widget
+        bridge.saveWidgetData("ekko", widget)
+    }
+
+    private var publishedWidget: String? = null
 
     fun clip(id: String): Clip? = data.clips.firstOrNull { it.id == id }
 
@@ -38,6 +49,7 @@ class EkkoStore private constructor(private val bridge: NativeBridge) {
             data.copy(
                 clips = data.clips.filter { it.id != id },
                 playlists = data.playlists.map { it.copy(clipIds = it.clipIds - id) },
+                soundboard = data.soundboard - id,
             )
         }
         bridge.ekkoDeleteAudio(id)
@@ -60,6 +72,13 @@ class EkkoStore private constructor(private val bridge: NativeBridge) {
 
     fun removeFromPlaylist(id: String, clipId: String) = updatePlaylist(id) { it.copy(clipIds = it.clipIds - clipId) }
 
+    fun isOnSoundboard(id: String): Boolean = id in data.soundboard
+
+    /** Legger lyden på lydbrettet, eller tar den av. Nye lyder legges sist, og det er plass til [SoundboardSize]. */
+    fun toggleSoundboard(id: String) = update { data ->
+        data.copy(soundboard = if (id in data.soundboard) data.soundboard - id else (data.soundboard + id).takeLast(SoundboardSize))
+    }
+
     fun setShuffle(shuffle: Boolean) = update { it.copy(shuffle = shuffle) }
 
     fun setRepeat(repeat: Repeat) = update { it.copy(repeat = repeat) }
@@ -76,6 +95,9 @@ class EkkoStore private constructor(private val bridge: NativeBridge) {
 
     companion object {
         private const val StorageKey = "ekko.data"
+
+        /** Så mange lyder får plass i den største widgeten. */
+        const val SoundboardSize = 12
         private val json = Json { ignoreUnknownKeys = true }
         private var instance: EkkoStore? = null
 

@@ -104,6 +104,12 @@ interface NativeBridge {
     fun ekkoSeek(seconds: Double)
 
     fun ekkoStop()
+
+    /**
+     * Lagrer [json] der widgetene kan lese det, under navnet [name] (f.eks. `ekko`), og ber
+     * widgetene tegne seg på nytt hvis noe er endret.
+     */
+    fun saveWidgetData(name: String, json: String)
 }
 
 /** Hvordan det går med å hente en lyd. Kalles alltid på hovedtråden. */

@@ -67,6 +67,23 @@ class EkkoPlayerTest {
     }
 
     @Test
+    fun theSoundboardReachesTheWidget() {
+        store.toggleSoundboard("b")
+        store.toggleSoundboard("a")
+        val widget = bridge.widgetData.getValue("ekko")
+        assertTrue(""""soundboard":["b","a"]""" in widget)
+        store.deleteClip("b")
+        assertEquals(listOf("a"), store.data.soundboard)
+    }
+
+    @Test
+    fun aWidgetTapPlaysOnlyThatSound() {
+        playFromWidget(bridge, "b")
+        assertEquals("play b from 2.0", bridge.ekkoCalls.last())
+        assertEquals(listOf("b"), player.queue?.order)
+    }
+
+    @Test
     fun deletingThePlayingClipSkipsToTheNext() {
         player.play(clips, EkkoPlayer.QueueSource.All, startAt = clips[0])
         store.deleteClip("a")

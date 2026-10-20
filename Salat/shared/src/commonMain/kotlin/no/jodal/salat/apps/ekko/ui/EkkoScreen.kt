@@ -229,7 +229,12 @@ fun EkkoScreen(bridge: NativeBridge, onBack: () -> Unit) {
             is EkkoSheet.ClipActions -> ClipActionsSheet(
                 clip = open.clip,
                 playlist = open.playlist,
+                onSoundboard = store.isOnSoundboard(open.clip.id),
                 onDismiss = { sheet = null },
+                onToggleSoundboard = {
+                    store.toggleSoundboard(open.clip.id)
+                    sheet = null
+                },
                 onEdit = {
                     sheet = null
                     destination = EkkoDestination.Edit(open.clip.id, destination)

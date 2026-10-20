@@ -106,4 +106,6 @@ private object PreviewBridge : NativeBridge {
     override fun ekkoSeek(seconds: Double) = Unit
 
     override fun ekkoStop() = Unit
+
+    override fun saveWidgetData(name: String, json: String) = Unit
 }

@@ -10,6 +10,8 @@ data class EkkoData(
     val playlists: List<Playlist> = emptyList(),
     val shuffle: Boolean = false,
     val repeat: Repeat = Repeat.Off,
+    /** Lydene på lydbrettet i widgeten, i rekkefølge. */
+    val soundboard: List<String> = emptyList(),
 )
 
 /** En lyd: et utsnitt av lyden fra en video. */

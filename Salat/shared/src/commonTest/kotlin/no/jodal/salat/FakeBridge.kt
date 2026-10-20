@@ -73,4 +73,11 @@ internal object FakeBridge : NativeBridge {
     override fun ekkoStop() {
         ekkoCalls += "stop"
     }
+
+    /** Det widgetene sist fikk, per navn. */
+    val widgetData = mutableMapOf<String, String>()
+
+    override fun saveWidgetData(name: String, json: String) {
+        widgetData[name] = json
+    }
 }
