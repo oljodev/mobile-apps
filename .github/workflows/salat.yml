@@ -76,12 +76,16 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      # SideStore signerer appen selv, så en usignert .ipa holder.
+      # SideStore signerer appen selv. Den leser likevel hvilke rettigheter appen trenger (som
+      # app-gruppen widgetene deler med appen) fra signaturen, så appen signeres uten sertifikat først.
       - name: Package .ipa
         working-directory: Salat/iosApp/build
         run: |
           mkdir Payload
           cp -R DerivedData/Build/Products/Release-iphoneos/Salat.app Payload/
+          codesign --force --sign - --entitlements ../SalatWidgets/SalatWidgets.entitlements Payload/Salat.app/PlugIns/SalatWidgets.appex
+          codesign --force --sign - --entitlements ../Salat/Salat.entitlements Payload/Salat.app
+          codesign --display --entitlements - Payload/Salat.app
           zip -qry Salat.ipa Payload
 
       - uses: actions/upload-artifact@v7

@@ -44,6 +44,7 @@ enum RiseScheduler {
                 let now = Date()
                 let plan = try JSONDecoder().decode(RisePlan.self, from: Data(planJson.utf8))
                 let items = plan.items.filter { $0.fireAt > now }
+                saveWidget(items)
                 await applyNotifications(items.filter { $0.kind == "notification" })
                 try await Alarms.shared.apply(
                     items.filter { $0.kind == "alarm" },
@@ -53,6 +54,18 @@ enum RiseScheduler {
             } catch {
                 completion(error.localizedDescription)
             }
+        }
+    }
+
+    /// Gir widgeten «Neste alarm» de neste alarmene.
+    private static func saveWidget(_ items: [PlannedItem]) {
+        let alarms = items
+            .filter { $0.kind == "alarm" }
+            .sorted { $0.fireAtMillis < $1.fireAtMillis }
+            .prefix(30)
+            .map { RiseWidgetAlarm(title: $0.title, fireAtMillis: $0.fireAtMillis) }
+        if let data = try? JSONEncoder().encode(RiseWidgetData(alarms: Array(alarms))) {
+            WidgetActions.save("rise", data)
         }
     }
 

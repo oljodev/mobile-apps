@@ -133,4 +133,8 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func ekkoStop() {
         EkkoAudio.shared.stop()
     }
+
+    func saveWidgetData(name: String, json: String) {
+        WidgetActions.save(name, Data(json.utf8))
+    }
 }

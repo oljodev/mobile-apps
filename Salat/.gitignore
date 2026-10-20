@@ -10,3 +10,5 @@ iosApp/*.xcodeproj/
 iosApp/build/
 *.ipa
 iosApp/Salat/Info.plist
+iosApp/SalatWidgets/Info.plist
+iosApp/*/*.entitlements

@@ -11,7 +11,10 @@ struct SalatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ComposeView().ignoresSafeArea()
+            ComposeView()
+                .ignoresSafeArea()
+                // Lenker fra widgetene, f.eks. salat://kompis/start.
+                .onOpenURL { WidgetActions.open($0.absoluteString) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -19,6 +22,9 @@ struct SalatApp: App {
                 Notifications.shared.scheduleExpiryReminder()
                 // Fyll på alarmer i Rise.
                 RiseStoreKt.refreshRise(bridge: IosNativeBridge.shared)
+                // Gi widgetene lydene i Ekko, og ta en lenke fra kontrollsenteret som venter.
+                EkkoWidgetsKt.refreshEkkoWidget(bridge: IosNativeBridge.shared)
+                WidgetActions.openPendingLink()
             }
         }
     }

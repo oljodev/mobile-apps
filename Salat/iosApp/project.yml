@@ -16,10 +16,17 @@ targets:
   Salat:
     type: application
     platform: iOS
-    sources: [Salat]
+    # Common deles med widgetene.
+    sources: [Salat, Common]
     dependencies:
       - package: YouTubeKit
+      - target: SalatWidgets
     scheme: {}
+    entitlements:
+      path: Salat/Salat.entitlements
+      properties:
+        # Mappen appen deler med widgetene. SideStore gir den et nytt navn når appen signeres.
+        com.apple.security.application-groups: [group.no.jodal.salat]
     info:
       path: Salat/Info.plist
       properties:
@@ -33,6 +40,12 @@ targets:
         NSMicrophoneUsageDescription: Kompis bruker mikrofonen så du kan snakke med den.
         # Lar samtaler med Kompis og lyder i Ekko fortsette når skjermen er låst.
         UIBackgroundModes: [audio]
+        # Lenker fra widgetene, f.eks. salat://kompis/start.
+        CFBundleURLTypes:
+          - CFBundleURLName: no.jodal.salat
+            CFBundleURLSchemes: [salat]
+        # SideStore skriver det nye navnet på app-gruppen hit.
+        ALTAppGroups: [group.no.jodal.salat]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.jodal.salat
@@ -51,3 +64,28 @@ targets:
         script: |
           cd "$SRCROOT/.."
           ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+  SalatWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [SalatWidgets, Common]
+    info:
+      path: SalatWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Salat
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        ALTAppGroups: [group.no.jodal.salat]
+    entitlements:
+      path: SalatWidgets/SalatWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.no.jodal.salat]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.jodal.salat.widgets
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        # Koden i Common vet da at den er i widgetene, ikke i appen.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
