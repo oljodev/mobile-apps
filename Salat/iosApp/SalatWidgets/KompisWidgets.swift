@@ -48,37 +48,44 @@ struct KompisView: View {
                 KompisBars(barWidth: 3.5, height: 22).widgetAccentable()
             }
         } else {
-            ZStack {
-                // Nordlyset gløder nederst, som på samtaleskjermen.
-                Ellipse()
-                    .fill(LinearGradient(colors: KompisStyle.aurora, startPoint: .leading, endPoint: .trailing))
-                    .frame(width: 220, height: 90)
-                    .blur(radius: 34)
-                    .opacity(0.5)
-                    .offset(y: 70)
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        KompisBars(barWidth: 5, height: 26)
-                            .foregroundStyle(LinearGradient(colors: KompisStyle.aurora, startPoint: .leading, endPoint: .trailing))
-                        Spacer()
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
-                            .background(.white.opacity(0.14), in: Circle())
-                    }
-                    Spacer(minLength: 0)
-                    Text("Snakk med")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(KompisStyle.secondary)
-                    Text("Kompis")
-                        .font(.system(size: 24, weight: .bold))
-                        .tracking(-0.5)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    KompisBars(barWidth: 5, height: 26)
+                        .foregroundStyle(LinearGradient(colors: KompisStyle.aurora, startPoint: .leading, endPoint: .trailing))
+                    Spacer()
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(.white.opacity(0.14), in: Circle())
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                Spacer(minLength: 0)
+                Text("Snakk med")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(KompisStyle.secondary)
+                Text("Kompis")
+                    .font(.system(size: 24, weight: .bold))
+                    .tracking(-0.5)
+                    .foregroundStyle(.white)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
+    }
+}
+
+/// Svart, med nordlyset som gløder nederst, som på samtaleskjermen. Ligger i bakgrunnen, så det
+/// ikke påvirker hvor teksten havner.
+struct KompisBackground: View {
+    var body: some View {
+        GeometryReader { geometry in
+            Ellipse()
+                .fill(LinearGradient(colors: KompisStyle.aurora, startPoint: .leading, endPoint: .trailing))
+                .frame(width: geometry.size.width * 1.1, height: geometry.size.height * 0.5)
+                .blur(radius: 30)
+                .opacity(0.45)
+                .position(x: geometry.size.width / 2, y: geometry.size.height * 1.05)
+        }
+        .background(.black)
     }
 }
 
@@ -86,7 +93,9 @@ struct KompisWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetKind.kompis, provider: KompisProvider()) { _ in
             KompisView()
-                .containerBackground(.black, for: .widget)
+                .containerBackground(for: .widget) {
+                    KompisBackground()
+                }
                 .widgetURL(URL(string: "salat://kompis/start"))
         }
         .configurationDisplayName("Kompis: Snakk nå")
