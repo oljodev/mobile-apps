@@ -16,6 +16,19 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 | Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
 | Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 
+## Widgets
+
+Widgetene ligger i én widget-utvidelse (`iosApp/SalatWidgets`), så de bare bruker én App-ID i SideStore. Hver widget har samme stil som mini-appen den hører til.
+
+| Widget | Hvor | Hva den gjør |
+| --- | --- | --- |
+| Ekko: Lydbrett | Hjemskjermen | 4, 8 eller 12 lyder. Trykk på en lyd for å spille den uten å åpne appen. Velg lyder i Ekko med … og «Legg på lydbrettet». Er lydbrettet tomt, vises de nyeste lydene. |
+| Ekko: Favorittlyd | Låseskjermen | Spiller én lyd. Hold inne widgeten for å velge hvilken. |
+| Rise: Neste alarm | Hjemskjermen og låseskjermen | Når neste alarm ringer, og nedtelling til den. |
+| Kompis: Snakk nå | Hjemskjermen, låseskjermen og kontrollsenteret | Åpner Kompis og starter en samtale med en gang. |
+
+Appen og widgetene deler data gjennom en app-gruppe. SideStore gir app-gruppen et nytt navn når den signerer appen, så Salat leser det riktige navnet fra signeringsfilen ([SharedFiles.swift](iosApp/Common/SharedFiles.swift)). Velg å beholde utvidelsene hvis SideStore spør når du installerer.
+
 ## Installere
 
 Legg til SideStore-kilden og installer Salat derfra, som beskrevet i [README-en i roten](../README.md#installing-an-app-with-sidestore). Da kommer nye versjoner som oppdateringer i SideStore.
@@ -31,7 +44,10 @@ Salat/
 │       ├── commonMain/      Felles kode: forsiden (ui/), mini-appene (apps/) og logoer (composeResources/)
 │       ├── iosMain/         Kobler Compose-UI-et til iOS
 │       └── desktopMain/     Forhåndsvisning på Linux
-└── iosApp/                  Swift: oppstart, varsler, alarmer, lyd og signeringsinfo
+└── iosApp/
+    ├── Salat/               Swift: oppstart, varsler, alarmer, lyd og signeringsinfo
+    ├── SalatWidgets/        Widgetene, i SwiftUI
+    └── Common/              Swift-kode som både appen og widgetene bruker
     └── project.yml          XcodeGen-oppsett for Xcode-prosjektet
 ```
 
