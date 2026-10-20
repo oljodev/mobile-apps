@@ -140,6 +140,10 @@ class KompisLive private constructor(private val store: KompisStore, private val
         state = state.copy(audioRoute = name)
     }
 
+    override fun onDebug(text: String) {
+        state = state.copy(debug = text)
+    }
+
     override fun onError(message: String) {
         finishTurn()
         saveDuration()

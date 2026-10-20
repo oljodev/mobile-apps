@@ -47,6 +47,31 @@ final class LiveSession {
     private var isSpeaking = false
     private var lastLevelUpdate = Date.distantPast
 
+    // Taledeteksjon. All lyd som sendes til Gemini koster penger, også stillhet, så bare lyd der
+    // noen snakker sendes. Brukes bare fra lydtråden.
+    private var noiseFloor: Float = 0.004
+    private var isSendingSpeech = false
+    private var silentSeconds: Double = 0
+    /// Lyden rett før man begynte å snakke, så første stavelse ikke forsvinner.
+    private var preRoll: [Data] = []
+    private var preRollSeconds: Double = 0
+    /// Hvor lenge det må være stille før Gemini får beskjed om at man er ferdig.
+    private static let hangoverSeconds = 1.2
+    private static let maxPreRollSeconds = 0.4
+    /// Lydnivået tale må over, uansett hvor stille det er rundt.
+    private static let minSpeechLevel: Float = 0.006
+
+    // Selvreparasjon og diagnose.
+    /// Når man sist var ferdig med å snakke uten at Gemini har svart, eller `nil`.
+    private var awaitingResponseSince: Date?
+    private var watchdog: Timer?
+    /// Hvor lenge Kompis venter på svar før den kobler til igjen.
+    private static let responseTimeout: TimeInterval = 12
+    private var speechSecondsSent: Double = 0
+    private var serverMessages = 0
+    private var lastEvent = "starter"
+    private var lastEventAt = Date()
+
     // MARK: - Start og stopp
 
     func start(configJson: String, listener: LiveListener) {
@@ -61,6 +86,10 @@ final class LiveSession {
         isMuted = false
         resumptionHandle = nil
         reconnectAttempts = 0
+        speechSecondsSent = 0
+        serverMessages = 0
+        awaitingResponseSince = nil
+        note("starter")
         listener.onStatus(status: "connecting")
 
         Task { @MainActor in
@@ -90,12 +119,19 @@ final class LiveSession {
         engine.stop()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         NotificationCenter.default.removeObserver(self)
+        watchdog?.invalidate()
+        watchdog = nil
         pendingBuffers = 0
+        turnCompleteWhilePlaying = false
         isSpeaking = false
+        isSendingSpeech = false
+        preRoll = []
+        preRollSeconds = 0
     }
 
     func setMuted(_ muted: Bool) {
         isMuted = muted
+        isSendingSpeech = false
         if muted, isReady {
             send(["realtimeInput": ["audioStreamEnd": true]])
         }
@@ -172,12 +208,87 @@ final class LiveSession {
         }
         guard error == nil, converted.frameLength > 0, let samples = converted.int16ChannelData else { return }
 
-        let data = Data(bytes: samples[0], count: Int(converted.frameLength) * 2)
-        send(["realtimeInput": ["audio": ["data": data.base64EncodedString(), "mimeType": "audio/pcm;rate=16000"]]])
-
+        let frames = Int(converted.frameLength)
+        let data = Data(bytes: samples[0], count: frames * 2)
+        let seconds = Double(frames) / sendFormat.sampleRate
+        let level = rms(int16: samples[0], count: frames)
         if !isSpeaking {
-            reportLevel(rms(int16: samples[0], count: Int(converted.frameLength)))
+            reportLevel(level)
         }
+
+        // Tale er tydelig høyere enn bakgrunnsstøyen, som følges med på hele tiden.
+        let isSpeech = level > max(noiseFloor * 2.5, Self.minSpeechLevel)
+        if !isSpeech {
+            noiseFloor = noiseFloor * 0.97 + level * 0.03
+        }
+
+        if isSpeech {
+            silentSeconds = 0
+            if !isSendingSpeech {
+                isSendingSpeech = true
+                for chunk in preRoll {
+                    sendAudio(chunk)
+                }
+                preRoll = []
+                preRollSeconds = 0
+                DispatchQueue.main.async {
+                    self.awaitingResponseSince = nil
+                    self.note("du snakker")
+                }
+            }
+            sendAudio(data)
+            speechSecondsSent += seconds
+        } else if isSendingSpeech {
+            // Litt stillhet etter tale sendes med, så Gemini hører at setningen er ferdig.
+            silentSeconds += seconds
+            sendAudio(data)
+            if silentSeconds >= Self.hangoverSeconds {
+                isSendingSpeech = false
+                send(["realtimeInput": ["audioStreamEnd": true]])
+                DispatchQueue.main.async {
+                    self.awaitingResponseSince = Date()
+                    self.note("venter på svar")
+                }
+            }
+        } else {
+            preRoll.append(data)
+            preRollSeconds += seconds
+            while preRollSeconds > Self.maxPreRollSeconds, !preRoll.isEmpty {
+                preRollSeconds -= Double(preRoll.removeFirst().count / 2) / sendFormat.sampleRate
+            }
+        }
+    }
+
+    private func sendAudio(_ data: Data) {
+        send(["realtimeInput": ["audio": ["data": data.base64EncodedString(), "mimeType": "audio/pcm;rate=16000"]]])
+    }
+
+    // MARK: - Selvreparasjon og diagnose
+
+    /// Kobler til igjen hvis Gemini ikke svarer etter at man er ferdig med å snakke.
+    private func startWatchdog() {
+        watchdog?.invalidate()
+        watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self, self.isRunning, self.isReady, let since = self.awaitingResponseSince else { return }
+            if Date().timeIntervalSince(since) > Self.responseTimeout {
+                self.awaitingResponseSince = nil
+                self.note("fikk ikke svar, kobler til igjen")
+                self.reconnect()
+            }
+        }
+    }
+
+    /// Husker hva som skjedde sist, og sender en kort oppsummering til Kotlin.
+    private func note(_ event: String) {
+        lastEvent = event
+        lastEventAt = Date()
+        reportDebug()
+    }
+
+    private func reportDebug() {
+        let ago = Int(Date().timeIntervalSince(lastEventAt))
+        let text = "\(Int(speechSecondsSent)) s tale sendt · \(serverMessages) meldinger fra Gemini · sist: \(lastEvent) (\(ago) s siden)"
+        listener?.onDebug(text: text)
     }
 
     /// Spiller av en bit av svaret fra Gemini (16-bit PCM, 24 kHz).
@@ -205,6 +316,8 @@ final class LiveSession {
     }
 
     private func bufferPlayed() {
+        // Avspillingen stoppes også når samtalen avsluttes. Da skal ikke status endres.
+        guard isRunning else { return }
         pendingBuffers = max(0, pendingBuffers - 1)
         if pendingBuffers == 0, turnCompleteWhilePlaying {
             turnCompleteWhilePlaying = false
@@ -350,6 +463,7 @@ final class LiveSession {
     }
 
     private func handle(_ message: [String: Any], sendHistory: Bool) {
+        serverMessages += 1
         if message["setupComplete"] != nil {
             if sendHistory, let config {
                 let turns = config.history.map { ["role": $0.role, "parts": [["text": $0.text]]] }
@@ -357,6 +471,8 @@ final class LiveSession {
             }
             isReady = true
             reconnectAttempts = 0
+            startWatchdog()
+            note("koblet til")
             listener?.onStatus(status: "listening")
             return
         }
@@ -374,12 +490,14 @@ final class LiveSession {
         }
 
         guard let content = message["serverContent"] as? [String: Any] else { return }
+        awaitingResponseSince = nil
 
         if content["interrupted"] as? Bool == true {
             clearPlayback()
             listener?.onInterrupted()
         }
         if let text = (content["inputTranscription"] as? [String: Any])?["text"] as? String, !text.isEmpty {
+            note("Gemini hørte deg")
             listener?.onUserText(text: text)
         }
         if let text = (content["outputTranscription"] as? [String: Any])?["text"] as? String, !text.isEmpty {
@@ -395,6 +513,7 @@ final class LiveSession {
             }
         }
         if content["turnComplete"] as? Bool == true {
+            note("Kompis svarte")
             listener?.onTurnComplete()
             if pendingBuffers > 0 {
                 turnCompleteWhilePlaying = true
@@ -409,6 +528,7 @@ final class LiveSession {
         if let reason = socket.closeReason.flatMap({ String(data: $0, encoding: .utf8) }), !reason.isEmpty,
            socket.closeCode != .normalClosure, socket.closeCode != .goingAway, resumptionHandle == nil {
             // Gemini avviste tilkoblingen, f.eks. på grunn av feil nøkkel.
+            note("Gemini stengte: \(reason)")
             fail("Gemini svarte: \(reason)")
             return
         }
@@ -423,6 +543,7 @@ final class LiveSession {
             return
         }
         listener?.onStatus(status: "reconnecting")
+        note("kobler til igjen (forsøk \(reconnectAttempts))")
         socket?.cancel(with: .goingAway, reason: nil)
         let delay = reconnectAttempts == 1 ? 0 : Double(reconnectAttempts)
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in

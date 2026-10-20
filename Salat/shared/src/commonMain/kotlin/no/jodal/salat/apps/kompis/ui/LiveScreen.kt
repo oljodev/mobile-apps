@@ -84,6 +84,8 @@ data class LiveUiState(
     /** Hvor lyden går, f.eks. «AirPods Pro» eller «Høyttaler». */
     val audioRoute: String = "iPhone",
     val message: String? = null,
+    /** Hva som skjer i tilkoblingen, vist nederst i teksten for å finne feil. */
+    val debug: String? = null,
 )
 
 @Composable
@@ -220,6 +222,17 @@ private fun Transcript(state: LiveUiState) {
         items(state.messages) { Bubble(it.role, it.text, dark = true) }
         state.userDraft?.let { item { Bubble(Role.User, it, dark = true, draft = true) } }
         state.kompisDraft?.let { item { Bubble(Role.Kompis, it, dark = true, draft = true) } }
+        state.debug?.let {
+            item {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.4f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
+        }
     }
 }
 

@@ -80,4 +80,7 @@ interface LiveListener {
 
     /** Noe gikk galt, og samtalen er stoppet. */
     fun onError(message: String)
+
+    /** En kort oppsummering av hva som skjer i tilkoblingen, for å finne feil. */
+    fun onDebug(text: String)
 }
