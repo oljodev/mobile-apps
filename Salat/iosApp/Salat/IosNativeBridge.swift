@@ -65,4 +65,8 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func setLiveMuted(muted: Bool) {
         LiveSession.shared.setMuted(muted)
     }
+
+    func rollLiveSession(historyJson: String) {
+        LiveSession.shared.roll(historyJson: historyJson)
+    }
 }

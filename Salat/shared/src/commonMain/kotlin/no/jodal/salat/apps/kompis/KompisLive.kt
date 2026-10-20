@@ -49,6 +49,9 @@ class KompisLive private constructor(private val store: KompisStore, private val
 
     val isActive: Boolean get() = conversationId != null
 
+    /** Hvor mange turer siden forrige gang Kompis startet en ny økt med tekstminne. */
+    private var turnsSinceRoll = 0
+
     /** Starter en ny samtale, eller fortsetter [continuing]. */
     fun start(continuing: Conversation?) {
         if (isActive) return
@@ -61,6 +64,7 @@ class KompisLive private constructor(private val store: KompisStore, private val
         )
         conversationId = conversation.id
         startedAtMillis = now
+        turnsSinceRoll = 0
         state = LiveUiState(
             title = conversation.title,
             status = if (store.hasApiKey) LiveStatus.Connecting else LiveStatus.NeedsApiKey,
@@ -77,9 +81,7 @@ class KompisLive private constructor(private val store: KompisStore, private val
             model = LiveModel,
             voice = store.data.settings.voice,
             systemInstruction = systemInstruction(store.data.settings.personality),
-            history = conversation.messages.takeLast(MaxHistory).map {
-                HistoryTurn(role = if (it.role == Role.User) "user" else "model", text = it.text)
-            },
+            history = history(conversation.messages),
         )
         // En ny samtale lagres først når noe er sagt, så tomme samtaler ikke blir liggende.
         if (continuing != null) save(conversation)
@@ -132,7 +134,15 @@ class KompisLive private constructor(private val store: KompisStore, private val
         state = state.copy(userDraft = null, kompisDraft = (state.kompisDraft.orEmpty() + text).trimStart())
     }
 
-    override fun onTurnComplete() = finishTurn()
+    override fun onTurnComplete() {
+        finishTurn()
+        // Hver 4. tur starter Kompis en ny økt med samtalen som tekst, så lyden ikke faktureres på nytt.
+        turnsSinceRoll++
+        if (turnsSinceRoll >= TurnsPerSession && isActive) {
+            turnsSinceRoll = 0
+            bridge.rollLiveSession(json.encodeToString(historySerializer, history(state.messages)))
+        }
+    }
 
     override fun onInterrupted() = finishTurn()
 
@@ -190,8 +200,20 @@ class KompisLive private constructor(private val store: KompisStore, private val
     }
 
     companion object {
-        /** Hvor mange tidligere meldinger som sendes med når en samtale fortsettes. */
-        private const val MaxHistory = 60
+        /** Hvor mange tidligere meldinger som sendes med som tekst. Tekst er billig, så det kan være mange. */
+        private const val MaxHistory = 100
+
+        /**
+         * Hvor mange turer Kompis tar før den starter en ny økt med tekstminne. Oftere er billigere,
+         * men hvert bytte tar et øyeblikk. Hver 4. tur koster omtrent 16 kr i timen, mot 157 kr uten.
+         */
+        const val TurnsPerSession = 4
+
+        private val historySerializer = kotlinx.serialization.builtins.ListSerializer(HistoryTurn.serializer())
+
+        private fun history(messages: List<Message>): List<HistoryTurn> = messages.takeLast(MaxHistory).map {
+            HistoryTurn(role = if (it.role == Role.User) "user" else "model", text = it.text)
+        }
         private val json = Json { encodeDefaults = true }
         private var instance: KompisLive? = null
 

@@ -63,4 +63,6 @@ private object PreviewBridge : NativeBridge {
     override fun stopLiveSession() = Unit
 
     override fun setLiveMuted(muted: Boolean) = Unit
+
+    override fun rollLiveSession(historyJson: String) = Unit
 }

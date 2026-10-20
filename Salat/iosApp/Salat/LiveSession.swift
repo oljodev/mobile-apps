@@ -14,7 +14,7 @@ final class LiveSession {
         let model: String
         let voice: String
         let systemInstruction: String
-        let history: [Turn]
+        var history: [Turn]
 
         struct Turn: Decodable {
             let role: String
@@ -72,6 +72,18 @@ final class LiveSession {
     private var lastEvent = "starter"
     private var lastEventAt = Date()
 
+    // Tekstminne. Lyd i samtalen faktureres på nytt for hver tur, så Kompis starter en ny økt med
+    // jevne mellomrom og sender samtalen så langt som tekst, som er mye billigere.
+    /// Samtalen så langt, for neste økt. Brukes så snart det er stille.
+    private var pendingHistory: [Config.Turn]?
+    /// Lyd som tas opp mens Kompis bytter økt. Sendes når den nye økten er klar.
+    private let bufferLock = NSLock()
+    private var isRolling = false
+    private var bufferedAudio: [Data] = []
+    private var bufferedStreamEnd = false
+    /// Omtrent 15 sekunder med lyd.
+    private static let maxBufferedChunks = 350
+
     // MARK: - Start og stopp
 
     func start(configJson: String, listener: LiveListener) {
@@ -121,6 +133,12 @@ final class LiveSession {
         NotificationCenter.default.removeObserver(self)
         watchdog?.invalidate()
         watchdog = nil
+        pendingHistory = nil
+        bufferLock.lock()
+        isRolling = false
+        bufferedAudio = []
+        bufferedStreamEnd = false
+        bufferLock.unlock()
         pendingBuffers = 0
         turnCompleteWhilePlaying = false
         isSpeaking = false
@@ -190,7 +208,7 @@ final class LiveSession {
     }
 
     private func handleMicrophone(_ buffer: AVAudioPCMBuffer) {
-        guard isReady, !isMuted, let converter else { return }
+        guard isReady || isRolling, !isMuted, let converter else { return }
 
         let ratio = sendFormat.sampleRate / buffer.format.sampleRate
         let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
@@ -244,7 +262,7 @@ final class LiveSession {
             sendAudio(data)
             if silentSeconds >= Self.hangoverSeconds {
                 isSendingSpeech = false
-                send(["realtimeInput": ["audioStreamEnd": true]])
+                sendStreamEnd()
                 DispatchQueue.main.async {
                     self.awaitingResponseSince = Date()
                     self.note("venter på svar")
@@ -260,7 +278,72 @@ final class LiveSession {
     }
 
     private func sendAudio(_ data: Data) {
+        bufferLock.lock()
+        if isRolling {
+            if bufferedAudio.count < Self.maxBufferedChunks {
+                bufferedAudio.append(data)
+            }
+            bufferLock.unlock()
+            return
+        }
+        bufferLock.unlock()
         send(["realtimeInput": ["audio": ["data": data.base64EncodedString(), "mimeType": "audio/pcm;rate=16000"]]])
+    }
+
+    private func sendStreamEnd() {
+        bufferLock.lock()
+        if isRolling {
+            bufferedStreamEnd = true
+            bufferLock.unlock()
+            return
+        }
+        bufferLock.unlock()
+        send(["realtimeInput": ["audioStreamEnd": true]])
+    }
+
+    // MARK: - Tekstminne
+
+    /// Starter en ny økt med [historyJson] som tekst, så snart det er stille.
+    func roll(historyJson: String) {
+        guard isRunning,
+              let turns = try? JSONDecoder().decode([Config.Turn].self, from: Data(historyJson.utf8)) else { return }
+        pendingHistory = turns
+        rollIfIdle()
+    }
+
+    private func rollIfIdle() {
+        guard let history = pendingHistory, isRunning, isReady, !isSpeaking, !isSendingSpeech,
+              awaitingResponseSince == nil, pendingBuffers == 0 else { return }
+        pendingHistory = nil
+        config?.history = history
+        // Uten håndtak starter Gemini en ny økt, og får samtalen som tekst i stedet for lyd.
+        resumptionHandle = nil
+        bufferLock.lock()
+        isRolling = true
+        bufferedAudio = []
+        bufferedStreamEnd = false
+        bufferLock.unlock()
+        note("ny økt med tekstminne")
+        socket?.cancel(with: .normalClosure, reason: nil)
+        connect()
+    }
+
+    /// Sender lyden som ble tatt opp mens Kompis byttet økt.
+    private func flushBufferedAudio() {
+        bufferLock.lock()
+        let audio = bufferedAudio
+        let streamEnd = bufferedStreamEnd
+        isRolling = false
+        bufferedAudio = []
+        bufferedStreamEnd = false
+        bufferLock.unlock()
+        for chunk in audio {
+            sendAudio(chunk)
+        }
+        if streamEnd {
+            sendStreamEnd()
+            awaitingResponseSince = Date()
+        }
     }
 
     // MARK: - Selvreparasjon og diagnose
@@ -269,7 +352,9 @@ final class LiveSession {
     private func startWatchdog() {
         watchdog?.invalidate()
         watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            guard let self, self.isRunning, self.isReady, let since = self.awaitingResponseSince else { return }
+            guard let self, self.isRunning, self.isReady else { return }
+            self.rollIfIdle()
+            guard let since = self.awaitingResponseSince else { return }
             if Date().timeIntervalSince(since) > Self.responseTimeout {
                 self.awaitingResponseSince = nil
                 self.note("fikk ikke svar, kobler til igjen")
@@ -330,6 +415,7 @@ final class LiveSession {
         isSpeaking = false
         listener?.onLevel(level: 0)
         listener?.onStatus(status: "listening")
+        rollIfIdle()
     }
 
     /// Brukeren avbrøt: kast det som ikke er spilt av ennå.
@@ -474,6 +560,7 @@ final class LiveSession {
             startWatchdog()
             note("koblet til")
             listener?.onStatus(status: "listening")
+            flushBufferedAudio()
             return
         }
 

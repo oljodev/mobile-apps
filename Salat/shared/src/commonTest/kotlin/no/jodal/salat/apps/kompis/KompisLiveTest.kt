@@ -19,6 +19,7 @@ class KompisLiveTest {
     @BeforeTest
     fun setUp() {
         bridge.startedWith = null
+        bridge.rolledWith = null
         store = KompisStore.get(bridge)
         store.saveApiKey("test-key")
         store.update { KompisData() }
@@ -96,6 +97,31 @@ class KompisLiveTest {
     }
 
     @Test
+    fun startsANewSessionWithTextMemoryEveryFewTurns() {
+        live.start(continuing = null)
+        repeat(KompisLive.TurnsPerSession - 1) { turn ->
+            live.onUserText("Spørsmål $turn")
+            live.onKompisText("Svar $turn")
+            live.onTurnComplete()
+        }
+        assertNull(bridge.rolledWith, "ingen ny økt før nok turer")
+
+        live.onUserText("Siste spørsmål")
+        live.onKompisText("Siste svar")
+        live.onTurnComplete()
+        val history = Json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(HistoryTurn.serializer()), bridge.rolledWith!!)
+        assertEquals(KompisLive.TurnsPerSession * 2, history.size)
+        assertEquals("user" to "Spørsmål 0", history.first().role to history.first().text)
+        assertEquals("model" to "Siste svar", history.last().role to history.last().text)
+
+        // Telleren starter på nytt.
+        bridge.rolledWith = null
+        live.onUserText("Enda en")
+        live.onTurnComplete()
+        assertNull(bridge.rolledWith)
+    }
+
+    @Test
     fun titles() {
         assertEquals("Kan du hjelpe meg med middag", KompisLive.titleFrom("Kan du hjelpe meg med middag? Jeg har egg."))
         assertEquals(46, KompisLive.titleFrom("a".repeat(80)).length)
@@ -105,6 +131,7 @@ class KompisLiveTest {
 private object FakeBridge : NativeBridge {
     private val storage = mutableMapOf<String, String>()
     var startedWith: String? = null
+    var rolledWith: String? = null
 
     override fun signingExpiresAtMillis(): Long? = null
     override fun scheduleExpiryReminder() = Unit
@@ -126,4 +153,7 @@ private object FakeBridge : NativeBridge {
     }
     override fun stopLiveSession() = Unit
     override fun setLiveMuted(muted: Boolean) = Unit
+    override fun rollLiveSession(historyJson: String) {
+        rolledWith = historyJson
+    }
 }

@@ -53,6 +53,12 @@ interface NativeBridge {
     fun stopLiveSession()
 
     fun setLiveMuted(muted: Boolean)
+
+    /**
+     * Starter en ny økt i den pågående samtalen, med [historyJson] (en liste av `HistoryTurn`) som
+     * tekst. Det er billigere enn at Gemini husker samtalen som lyd. Skjer først når det er stille.
+     */
+    fun rollLiveSession(historyJson: String)
 }
 
 /** Det Swift forteller om en samtale med Gemini Live. Kalles alltid på hovedtråden. */
