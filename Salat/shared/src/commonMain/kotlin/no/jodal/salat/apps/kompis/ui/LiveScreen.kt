@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,14 +27,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.automirrored.rounded.Notes
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.automirrored.rounded.Notes
-import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,16 +54,16 @@ import no.jodal.salat.apps.kompis.Role
 import no.jodal.salat.apps.kompis.formatTimer
 
 /** Hvor samtalen er akkurat nå. */
-enum class LiveStatus(val label: String, val orb: OrbMode) {
-    NeedsApiKey("Mangler nøkkel", OrbMode.Idle),
-    Connecting("Kobler til", OrbMode.Thinking),
-    Listening("Lytter", OrbMode.Listening),
-    Thinking("Tenker", OrbMode.Thinking),
-    Speaking("Snakker", OrbMode.Speaking),
-    Reconnecting("Kobler til igjen", OrbMode.Thinking),
-    Muted("Mikrofonen er av", OrbMode.Idle),
-    Failed("Noe gikk galt", OrbMode.Idle),
-    Ended("Samtalen er avsluttet", OrbMode.Idle),
+enum class LiveStatus(val label: String, val voice: VoiceMode) {
+    NeedsApiKey("Mangler nøkkel", VoiceMode.Idle),
+    Connecting("Kobler til", VoiceMode.Thinking),
+    Listening("Lytter", VoiceMode.Listening),
+    Thinking("Tenker", VoiceMode.Thinking),
+    Speaking("Snakker", VoiceMode.Speaking),
+    Reconnecting("Kobler til igjen", VoiceMode.Thinking),
+    Muted("Mikrofonen er av", VoiceMode.Idle),
+    Failed("Noe gikk galt", VoiceMode.Idle),
+    Ended("Avsluttet", VoiceMode.Idle),
 }
 
 /** Alt samtaleskjermen viser. Fylles av koblingen til Gemini. */
@@ -88,6 +86,9 @@ data class LiveUiState(
     val debug: String? = null,
 )
 
+private val White = Color.White
+private val Secondary = KompisPalette.NightSecondary
+
 @Composable
 fun LiveScreen(
     state: LiveUiState,
@@ -97,138 +98,151 @@ fun LiveScreen(
     onEnd: () -> Unit,
     onMinimize: () -> Unit,
 ) {
-    val white = Color.White
+    val mode = if (state.muted) VoiceMode.Idle else state.status.voice
     Box(Modifier.fillMaxSize().background(KompisPalette.Night)) {
-        Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            // Topplinje
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                GlassButton(Icons.Rounded.KeyboardArrowDown, "Lukk", onClick = onMinimize)
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        state.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = white,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(formatTimer(state.elapsedSeconds), style = MaterialTheme.typography.labelLarge, color = white.copy(alpha = 0.55f))
-                }
-                GlassButton(Icons.AutoMirrored.Rounded.Notes, if (showTranscript) "Skjul tekst" else "Vis tekst", selected = showTranscript, onClick = onToggleTranscript)
-            }
-
+        Aurora(
+            mode = mode,
+            level = if (showTranscript) 0f else state.level,
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(if (showTranscript) 200.dp else 440.dp),
+        )
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            TopBar(state, showTranscript, onMinimize = onMinimize, onToggleTranscript = onToggleTranscript)
             AnimatedContent(
                 targetState = showTranscript,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) { transcript ->
-                if (transcript) {
-                    Transcript(state)
-                } else {
-                    OrbStage(state)
-                }
+                if (transcript) Transcript(state) else Captions(state)
             }
-
             Controls(state, onToggleMute = onToggleMute, onEnd = onEnd)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 18.dp, bottom = 12.dp),
-            ) {
-                Icon(Icons.Rounded.Lock, contentDescription = null, tint = white.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
-                Text(
-                    "Du kan låse skjermen. Kompis lytter videre.",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = white.copy(alpha = 0.45f),
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun OrbStage(state: LiveUiState) {
-    val white = Color.White
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
-    ) {
-        StatusPill(state.status)
-        Orb(
-            mode = if (state.muted) OrbMode.Idle else state.status.orb,
-            level = state.level,
-            modifier = Modifier.size(300.dp),
-        )
-        // Det som sies akkurat nå: det du sier mens Kompis lytter, ellers det Kompis sier.
-        val userIsTalking = state.userDraft != null && state.status != LiveStatus.Speaking
-        val caption = when {
-            state.message != null -> state.message
-            userIsTalking -> state.userDraft
-            else -> state.kompisDraft ?: state.messages.lastOrNull { it.role == Role.Kompis }?.text
-        }
-        Text(
-            caption.orEmpty(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Normal,
-            color = if (userIsTalking && state.message == null) KompisPalette.Aqua else white,
-            textAlign = TextAlign.Center,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 520.dp).height(124.dp),
-        )
-    }
-}
-
-@Composable
-private fun StatusPill(status: LiveStatus) {
-    val dot by animateColorAsState(
-        when (status.orb) {
-            OrbMode.Listening -> KompisPalette.Aqua
-            OrbMode.Speaking -> KompisPalette.Orchid
-            OrbMode.Thinking -> KompisPalette.Indigo
-            OrbMode.Idle -> Color.White.copy(alpha = 0.4f)
-        },
-    )
+private fun TopBar(state: LiveUiState, showTranscript: Boolean, onMinimize: () -> Unit, onToggleTranscript: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.08f))
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
-        Text(status.label, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.85f))
+        GlassButton(Icons.Rounded.KeyboardArrowDown, "Lukk", onClick = onMinimize)
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                state.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp),
+            )
+            StatusLine(state)
+        }
+        GlassButton(
+            Icons.AutoMirrored.Rounded.Notes,
+            if (showTranscript) "Skjul tekst" else "Vis tekst",
+            selected = showTranscript,
+            onClick = onToggleTranscript,
+        )
+    }
+}
+
+/** «● Lytter · 04:12» */
+@Composable
+private fun StatusLine(state: LiveUiState) {
+    val dot by animateColorAsState(
+        when (if (state.muted) VoiceMode.Idle else state.status.voice) {
+            VoiceMode.Listening -> KompisPalette.Cyan
+            VoiceMode.Speaking -> KompisPalette.Pink
+            VoiceMode.Thinking -> KompisPalette.Violet
+            VoiceMode.Idle -> Secondary
+        },
+    )
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(dot))
+        Text(
+            "${state.status.label}  ·  ${formatTimer(state.elapsedSeconds)}",
+            style = MaterialTheme.typography.labelMedium,
+            color = Secondary,
+        )
+    }
+}
+
+/** Det som sies akkurat nå, i stor tekst, med det forrige over i grått. */
+@Composable
+private fun Captions(state: LiveUiState) {
+    val userIsTalking = state.userDraft != null && state.status != LiveStatus.Speaking
+    val current = when {
+        state.message != null -> state.message
+        userIsTalking -> state.userDraft
+        else -> state.kompisDraft ?: state.messages.lastOrNull { it.role == Role.Kompis }?.text
+    }
+    // Det som ble sagt før, så man husker hva man svarer på.
+    val previous = when {
+        state.message != null -> null
+        userIsTalking -> state.messages.lastOrNull { it.role == Role.Kompis }?.text
+        state.kompisDraft != null -> state.messages.lastOrNull { it.role == Role.User }?.text
+        else -> null
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp).padding(bottom = 40.dp),
+    ) {
+        if (current == null) {
+            Text(
+                if (state.status == LiveStatus.Listening) "Si noe, så svarer Kompis." else state.status.label + " …",
+                fontSize = 28.sp,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.Medium,
+                color = White.copy(alpha = 0.35f),
+            )
+            return@Column
+        }
+        previous?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Secondary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            current,
+            fontSize = 28.sp,
+            lineHeight = 36.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.3).sp,
+            color = if (userIsTalking && state.message == null) White.copy(alpha = 0.75f) else White,
+            maxLines = 8,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 560.dp),
+        )
+        if (userIsTalking && state.message == null) {
+            Text("Du", style = MaterialTheme.typography.labelLarge, color = KompisPalette.Cyan)
+        }
     }
 }
 
 @Composable
 private fun Transcript(state: LiveUiState) {
     val listState = rememberLazyListState()
-    val count = state.messages.size + listOfNotNull(state.userDraft, state.kompisDraft).size
+    val count = state.messages.size + listOfNotNull(state.userDraft, state.kompisDraft, state.debug).size
     LaunchedEffect(count) { if (count > 0) listState.animateScrollToItem(count - 1) }
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(state.messages) { Bubble(it.role, it.text, dark = true) }
-        state.userDraft?.let { item { Bubble(Role.User, it, dark = true, draft = true) } }
-        state.kompisDraft?.let { item { Bubble(Role.Kompis, it, dark = true, draft = true) } }
+        items(state.messages) { ChatMessage(it.role, it.text, dark = true) }
+        state.userDraft?.let { item { ChatMessage(Role.User, it, dark = true, draft = true) } }
+        state.kompisDraft?.let { item { ChatMessage(Role.Kompis, it, dark = true, draft = true) } }
         state.debug?.let {
             item {
                 Text(
                     it,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.4f),
-                    textAlign = TextAlign.Center,
+                    color = White.copy(alpha = 0.35f),
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )
             }
@@ -238,53 +252,54 @@ private fun Transcript(state: LiveUiState) {
 
 @Composable
 private fun Controls(state: LiveUiState, onToggleMute: () -> Unit, onEnd: () -> Unit) {
-    Row(
-        // Bunnjustert, så teksten under knappene står på linje selv om Avslutt er større.
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
-        modifier = Modifier.padding(top = 8.dp),
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
     ) {
-        RoundControl(
-            icon = if (state.muted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
-            label = if (state.muted) "Slå på mikrofon" else "Demp",
-            background = if (state.muted) Color.White else Color.White.copy(alpha = 0.12f),
-            tint = if (state.muted) Color(0xFF120F26) else Color.White,
-            size = 64,
-            onClick = onToggleMute,
-        )
-        RoundControl(Icons.Rounded.CallEnd, "Avslutt", background = KompisPalette.EndCall, tint = Color.White, size = 78, onClick = onEnd)
-        RoundControl(
-            icon = if (state.audioRoute.contains("AirPods", ignoreCase = true)) Icons.Rounded.Headphones else Icons.Rounded.GraphicEq,
-            label = state.audioRoute,
-            background = Color.White.copy(alpha = 0.12f),
-            tint = Color.White,
-            size = 64,
-            onClick = null,
-        )
-    }
-}
-
-@Composable
-private fun RoundControl(icon: ImageVector, label: String, background: Color, tint: Color, size: Int, onClick: (() -> Unit)?) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(size.dp)
-                .clip(CircleShape)
-                .background(background)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        ) {
-            Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size((size * 0.42f).dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(if (state.muted) White else White.copy(alpha = 0.12f))
+                    .clickable(onClick = onToggleMute),
+            ) {
+                Icon(
+                    if (state.muted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                    contentDescription = if (state.muted) "Slå på mikrofonen" else "Demp mikrofonen",
+                    tint = if (state.muted) Color.Black else White,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .height(64.dp)
+                    .clip(CircleShape)
+                    .background(KompisPalette.EndCall)
+                    .clickable(onClick = onEnd)
+                    .padding(horizontal = 26.dp),
+            ) {
+                Icon(Icons.Rounded.Close, contentDescription = null, tint = White, modifier = Modifier.size(22.dp))
+                Text("Avslutt", style = MaterialTheme.typography.titleMedium, color = White)
+            }
         }
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.65f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 90.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(
+                if (state.audioRoute.contains("AirPods", ignoreCase = true)) Icons.Rounded.Headphones else Icons.AutoMirrored.Rounded.VolumeUp,
+                contentDescription = null,
+                tint = White.copy(alpha = 0.55f),
+                modifier = Modifier.size(15.dp),
+            )
+            Text(
+                "${state.audioRoute}  ·  Du kan låse skjermen",
+                style = MaterialTheme.typography.labelMedium,
+                color = White.copy(alpha = 0.55f),
+            )
+        }
     }
 }
 
@@ -295,46 +310,41 @@ private fun GlassButton(icon: ImageVector, description: String, selected: Boolea
         modifier = Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = if (selected) 0.9f else 0.1f))
+            .background(if (selected) White else White.copy(alpha = 0.1f))
             .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription = description, tint = if (selected) Color(0xFF120F26) else Color.White, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = description, tint = if (selected) Color.Black else White, modifier = Modifier.size(22.dp))
     }
 }
 
-/** En snakkeboble. Brukes både på samtaleskjermen (mørk) og i samtalehistorikken. */
+/**
+ * Én melding i en samtale. Det du sa står i en grå boble til høyre, og det Kompis sa står som ren
+ * tekst, som i en moderne chat. Brukes både på samtaleskjermen ([dark]) og i samtalehistorikken.
+ */
 @Composable
-fun Bubble(role: Role, text: String, dark: Boolean, draft: Boolean = false) {
-    val isUser = role == Role.User
+fun ChatMessage(role: Role, text: String, dark: Boolean, draft: Boolean = false) {
     val colors = MaterialTheme.colorScheme
-    val background = when {
-        dark && isUser -> KompisPalette.Aqua.copy(alpha = 0.16f)
-        dark -> Color.White.copy(alpha = 0.08f)
-        isUser -> colors.primary
-        else -> colors.surfaceContainer
-    }
-    val content = when {
-        dark -> Color.White
-        isUser -> colors.onPrimary
-        else -> colors.onSurface
-    }
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart) {
+    val alpha = if (draft) 0.55f else 1f
+    if (role == Role.User) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = (if (dark) White else colors.onSurface).copy(alpha = alpha),
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(if (dark) KompisPalette.NightSurface else colors.surfaceVariant)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+    } else {
         Text(
             text,
             style = MaterialTheme.typography.bodyLarge,
-            color = content.copy(alpha = if (draft) 0.6f else 1f),
-            modifier = Modifier
-                .widthIn(max = 300.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 22.dp,
-                        topEnd = 22.dp,
-                        bottomStart = if (isUser) 22.dp else 6.dp,
-                        bottomEnd = if (isUser) 6.dp else 22.dp,
-                    ),
-                )
-                .background(background)
-                .padding(horizontal = 16.dp, vertical = 11.dp),
+            color = (if (dark) White else colors.onSurface).copy(alpha = alpha),
+            modifier = Modifier.fillMaxWidth().padding(end = 24.dp),
         )
     }
 }
+

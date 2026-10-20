@@ -18,7 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Mic
@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import no.jodal.salat.apps.kompis.Conversation
 import no.jodal.salat.apps.kompis.formatDuration
 import no.jodal.salat.apps.kompis.formatWhen
-import no.jodal.salat.ui.LocalDarkTheme
 
 /** En lagret samtale, som en chat. */
 @Composable
@@ -72,53 +73,36 @@ fun ConversationScreen(
         Column(Modifier.fillMaxSize()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 16.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clip(CircleShape).clickable(onClick = onBack).padding(horizontal = 10.dp, vertical = 8.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBackIos, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
-                    Text("Kompis", style = MaterialTheme.typography.bodyLarge, color = colors.primary)
-                }
-                Text(
-                    conversation.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.onBackground,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).clip(CircleShape).clickable { renaming = true }.padding(horizontal = 8.dp, vertical = 6.dp),
-                )
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(36.dp).clip(CircleShape).clickable { renaming = true },
-                ) {
-                    Icon(Icons.Rounded.Edit, contentDescription = "Endre navn", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.padding(end = 8.dp).size(36.dp).clip(CircleShape).clickable { confirmDelete = true },
-                ) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Slett samtalen", tint = colors.onSurfaceVariant)
-                }
+                CircleIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onClick = onBack)
+                Spacer(Modifier.weight(1f))
+                CircleIconButton(Icons.Rounded.Edit, "Endre navn", onClick = { renaming = true })
+                CircleIconButton(Icons.Rounded.DeleteOutline, "Slett samtalen", onClick = { confirmDelete = true })
             }
 
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 130.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 item {
-                    Text(
-                        "${formatWhen(conversation.createdAtMillis, nowMillis).replaceFirstChar { it.uppercase() }}  ·  ${formatDuration(conversation.durationSeconds)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 10.dp)) {
+                        Text(
+                            conversation.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = colors.onBackground,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { renaming = true },
+                        )
+                        Text(
+                            "${formatWhen(conversation.createdAtMillis, nowMillis).replaceFirstChar { it.uppercase() }}  ·  ${formatDuration(conversation.durationSeconds)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
                 }
-                items(conversation.messages) { Bubble(it.role, it.text, dark = false) }
+                items(conversation.messages) { ChatMessage(it.role, it.text, dark = false) }
             }
         }
 
@@ -129,20 +113,20 @@ fun ConversationScreen(
                 .fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(Color.Transparent, colors.background, colors.background)))
                 .navigationBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 16.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 32.dp, bottom = 16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(58.dp)
                     .clip(CircleShape)
-                    .background(KompisPalette.welcome(LocalDarkTheme.current))
-                    .clickable(onClick = onContinue)
-                    .padding(vertical = 16.dp),
+                    .background(colors.primary)
+                    .clickable(onClick = onContinue),
             ) {
-                Icon(Icons.Rounded.Mic, contentDescription = null, tint = Color.White)
-                Text("Fortsett samtalen", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                VoiceBars(level = 1f, color = colors.onPrimary, animated = false, modifier = Modifier.height(18.dp))
+                Text("Fortsett samtalen", style = MaterialTheme.typography.titleMedium, color = colors.onPrimary)
             }
         }
     }

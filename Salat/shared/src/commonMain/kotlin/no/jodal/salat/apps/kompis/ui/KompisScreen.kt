@@ -41,6 +41,14 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.HorizontalDivider
+import no.jodal.salat.resources.Res
+import no.jodal.salat.resources.kompis_logo
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -187,242 +195,232 @@ fun KompisHome(
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(colors.background),
         contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
+            start = 20.dp,
+            end = 20.dp,
             bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item(key = "top") { HomeTopBar(onBack = onBack, onSettings = onSettings) }
-        if (live.isActive) {
-            item(key = "ongoing") { OngoingCard(live, onClick = onReturnToLive) }
-        } else {
-            item(key = "welcome") { WelcomeCard(onStart = onStart) }
+        item(key = "top") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().statusBarsPadding().height(52.dp),
+            ) {
+                Box(Modifier.offset(x = (-10).dp)) { BackButton(onBack, color = colors.onBackground) }
+                Spacer(Modifier.weight(1f))
+                CircleIconButton(Icons.Rounded.Tune, "Innstillinger", onClick = onSettings)
+            }
+        }
+        item(key = "title") { Title() }
+        item(key = "start") {
+            if (live.isActive) OngoingRow(live, onClick = onReturnToLive) else StartButton(onStart)
         }
         if (!store.hasApiKey) {
-            item(key = "key") { ApiKeyCard(onClick = onSettings) }
+            item(key = "key") { ApiKeyRow(onClick = onSettings) }
         }
 
+        item(key = "heading") {
+            Text(
+                "Samtaler",
+                style = MaterialTheme.typography.titleLarge,
+                color = colors.onBackground,
+                modifier = Modifier.padding(top = 36.dp, bottom = 4.dp),
+            )
+        }
         if (conversations.isEmpty()) {
-            item(key = "empty") { EmptyConversations() }
+            item(key = "empty") {
+                Text(
+                    "Samtalene dine lagres her, så du kan lese dem og fortsette der dere slapp.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
         }
         for (period in Period.entries) {
             val items = grouped[period] ?: continue
             item(key = "period-$period") {
                 Text(
-                    period.label.uppercase(),
+                    period.label,
                     style = MaterialTheme.typography.labelLarge,
-                    letterSpacing = 1.5.sp,
                     color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 6.dp, top = 18.dp, bottom = 2.dp),
+                    modifier = Modifier.padding(top = 20.dp, bottom = 2.dp),
                 )
             }
-            items(items, key = { it.id }) { ConversationRow(it, now, onClick = { onOpen(it) }) }
+            items.forEachIndexed { index, conversation ->
+                item(key = conversation.id) {
+                    if (index > 0) HorizontalDivider(color = colors.outlineVariant)
+                    ConversationRow(conversation, now, onClick = { onOpen(conversation) })
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun HomeTopBar(onBack: () -> Unit, onSettings: () -> Unit) {
+private fun Title() {
     val colors = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)) {
-        Box(Modifier.align(Alignment.CenterStart)) { BackButton(onBack) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.padding(top = 12.dp),
+    ) {
+        Image(
+            painterResource(Res.drawable.kompis_logo),
+            contentDescription = null,
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                // En tynn kant, så den mørke logoen synes mot svart bakgrunn.
+                .border(1.dp, colors.outlineVariant, RoundedCornerShape(14.dp)),
+        )
+        Column {
+            Text("Kompis", style = MaterialTheme.typography.displaySmall, color = colors.onBackground)
+            Text(
+                "Snakk om hva som helst",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StartButton(onStart: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.align(Alignment.Center),
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(28.dp).clip(CircleShape).background(KompisPalette.welcome(LocalDarkTheme.current)),
-            ) {
-                Icon(Icons.Rounded.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
-            }
-            Text("Kompis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = colors.onBackground)
-        }
-        Box(
-            contentAlignment = Alignment.Center,
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(36.dp)
+                .fillMaxWidth()
+                .height(60.dp)
                 .clip(CircleShape)
-                .background(colors.surfaceVariant)
-                .clickable(onClick = onSettings),
+                .background(colors.primary)
+                .clickable(onClick = onStart),
         ) {
-            Icon(Icons.Rounded.Settings, contentDescription = "Innstillinger", tint = colors.onSurface, modifier = Modifier.size(20.dp))
+            VoiceBars(level = 1f, color = colors.onPrimary, animated = false, modifier = Modifier.height(20.dp))
+            Text("Start samtale", style = MaterialTheme.typography.titleMedium, color = colors.onPrimary)
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Feature(Icons.Rounded.Headphones, "Med AirPods")
+            Feature(Icons.Rounded.Lock, "Med skjermen låst")
         }
     }
 }
 
 @Composable
-private fun WelcomeCard(onStart: () -> Unit) {
-    val white = Color.White
+private fun Feature(icon: ImageVector, text: String) {
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Icon(icon, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    }
+}
+
+/** Vises i stedet for startknappen mens en samtale pågår. */
+@Composable
+private fun OngoingRow(live: KompisLive, onClick: () -> Unit) {
     Box(
         Modifier
+            .padding(top = 28.dp)
             .fillMaxWidth()
-            .padding(top = 4.dp)
-            .clip(RoundedCornerShape(32.dp))
-            .background(KompisPalette.welcome(LocalDarkTheme.current)),
-    ) {
-        Orb(
-            mode = OrbMode.Idle,
-            level = 0f,
-            // Kula titter fram fra hjørnet.
-            modifier = Modifier.align(Alignment.TopEnd).offset(x = 44.dp, y = (-34).dp).size(210.dp),
-        )
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Hei!", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = white)
-            Text(
-                "Hva vil du snakke\nom i dag?",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Normal,
-                color = white.copy(alpha = 0.9f),
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .padding(top = 18.dp)
-                    .clip(CircleShape)
-                    .background(white)
-                    .clickable(onClick = onStart)
-                    .padding(start = 18.dp, end = 22.dp, top = 14.dp, bottom = 14.dp),
-            ) {
-                Icon(Icons.Rounded.Mic, contentDescription = null, tint = Color(0xFF5B45C9), modifier = Modifier.size(22.dp))
-                Text("Start samtale", style = MaterialTheme.typography.titleMedium, color = Color(0xFF231A5C))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 14.dp)) {
-                FeatureChip(Icons.Rounded.Headphones, "Med AirPods")
-                FeatureChip(Icons.Rounded.Lock, "Med skjermen av")
-            }
-        }
-    }
-}
-
-/** Vises i stedet for velkomstkortet mens en samtale pågår. */
-@Composable
-private fun OngoingCard(live: KompisLive, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .height(76.dp)
+            .clip(RoundedCornerShape(24.dp))
             .background(KompisPalette.Night)
-            .clickable(onClick = onClick)
-            .padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+            .clickable(onClick = onClick),
     ) {
-        Orb(mode = live.state.status.orb, level = live.state.level, modifier = Modifier.size(72.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Samtale pågår", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Text(
-                live.state.status.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.7f),
-            )
+        Aurora(
+            mode = live.state.status.voice,
+            level = live.state.level,
+            modifier = Modifier.matchParentSize(),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        ) {
+            VoiceBars(level = live.state.level, color = Color.White, modifier = Modifier.height(22.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Samtale pågår", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(live.state.status.label, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color.White)
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color.White)
     }
 }
 
 @Composable
-private fun FeatureChip(icon: ImageVector, text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium, color = Color.White)
-    }
-}
-
-@Composable
-private fun ApiKeyCard(onClick: () -> Unit) {
+private fun ApiKeyRow(onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
+            .padding(top = 16.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(colors.primaryContainer)
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, colors.outlineVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(16.dp),
     ) {
-        Icon(Icons.Rounded.Key, contentDescription = null, tint = colors.onPrimaryContainer)
+        Icon(Icons.Rounded.Key, contentDescription = null, tint = colors.onSurface)
         Column(Modifier.weight(1f)) {
-            Text("Legg inn Gemini-nøkkel", style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
+            Text("Legg inn Gemini-nøkkel", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
             Text(
                 "Kompis trenger en nøkkel fra Google AI Studio for å snakke.",
                 style = MaterialTheme.typography.bodySmall,
-                color = colors.onPrimaryContainer.copy(alpha = 0.8f),
+                color = colors.onSurfaceVariant,
             )
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.onPrimaryContainer)
-    }
-}
-
-@Composable
-private fun EmptyConversations() {
-    val colors = MaterialTheme.colorScheme
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 36.dp, start = 24.dp, end = 24.dp),
-    ) {
-        Icon(Icons.Rounded.Forum, contentDescription = null, tint = colors.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(40.dp))
-        Text("Ingen samtaler ennå", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-        Text(
-            "Samtalene dine lagres her, så du kan lese dem og fortsette der dere slapp.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun ConversationRow(conversation: Conversation, nowMillis: Long, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(colors.surfaceContainer)
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 conversation.title,
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            conversation.messages.lastOrNull()?.let {
-                Text(
-                    it.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
             Text(
-                "${formatWhen(conversation.updatedAtMillis, nowMillis).replaceFirstChar { it.uppercase() }}  ·  ${formatDuration(conversation.durationSeconds)}",
+                formatWhen(conversation.updatedAtMillis, nowMillis).replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.labelMedium,
-                color = colors.primary,
-                modifier = Modifier.padding(top = 2.dp),
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(start = 12.dp),
             )
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
+        conversation.messages.lastOrNull()?.let {
+            Text(
+                it.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun CircleIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(38.dp).clip(CircleShape).background(colors.surfaceVariant).clickable(onClick = onClick),
+    ) {
+        Icon(icon, contentDescription = description, tint = colors.onSurface, modifier = Modifier.size(20.dp))
     }
 }
