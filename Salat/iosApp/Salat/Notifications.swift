@@ -37,7 +37,7 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
 
     func sendTestNotification(after seconds: TimeInterval) {
         let content = UNMutableNotificationContent()
-        content.title = "Hei fra Salat 🥗"
+        content.title = "Hei fra Salat"
         content.body = "Varsler virker!"
         content.sound = .default
 
