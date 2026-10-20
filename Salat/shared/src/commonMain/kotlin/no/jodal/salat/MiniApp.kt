@@ -3,6 +3,7 @@ package no.jodal.salat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import no.jodal.salat.apps.Ekko
 import no.jodal.salat.apps.Fornyelse
 import no.jodal.salat.apps.Kompis
 import no.jodal.salat.apps.Rise
@@ -47,6 +48,7 @@ sealed interface MiniAppIcon {
 val miniApps = listOf(
     Rise,
     Kompis,
+    Ekko,
     Fornyelse,
     Varseltest,
 )
