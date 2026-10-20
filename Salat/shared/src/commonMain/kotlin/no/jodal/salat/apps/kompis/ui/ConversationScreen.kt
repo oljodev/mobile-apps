@@ -1,5 +1,9 @@
 package no.jodal.salat.apps.kompis.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,16 +25,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +53,11 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,10 +74,26 @@ fun ConversationScreen(
     onContinue: () -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
+    startRenaming: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     var confirmDelete by remember { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf(false) }
+    // Navnet som redigeres, eller `null` når man ikke endrer navn.
+    var newTitle by remember {
+        mutableStateOf(if (startRenaming) conversation.title.selectedAll() else null)
+    }
+    val editing = newTitle
+    val canSave = editing?.text?.isNotBlank() == true
+
+    fun startRenaming() {
+        newTitle = conversation.title.selectedAll()
+    }
+
+    fun saveTitle() {
+        val title = newTitle?.text?.trim().orEmpty()
+        if (title.isNotEmpty() && title != conversation.title) onRename(title)
+        newTitle = null
+    }
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
@@ -76,10 +102,42 @@ fun ConversationScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 16.dp),
             ) {
-                CircleIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onClick = onBack)
-                Spacer(Modifier.weight(1f))
-                CircleIconButton(Icons.Rounded.Edit, "Endre navn", onClick = { renaming = true })
-                CircleIconButton(Icons.Rounded.DeleteOutline, "Slett samtalen", onClick = { confirmDelete = true })
+                AnimatedContent(
+                    targetState = editing != null,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { isEditing ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (isEditing) {
+                            Text(
+                                "Avbryt",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { newTitle = null }
+                                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                "Lagre",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colors.onPrimary,
+                                modifier = Modifier
+                                    .alpha(if (canSave) 1f else 0.35f)
+                                    .clip(CircleShape)
+                                    .background(colors.primary)
+                                    .clickable(enabled = canSave, onClick = ::saveTitle)
+                                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                            )
+                        } else {
+                            CircleIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onClick = onBack)
+                            Spacer(Modifier.weight(1f))
+                            CircleIconButton(Icons.Rounded.Edit, "Endre navn", onClick = ::startRenaming)
+                            CircleIconButton(Icons.Rounded.DeleteOutline, "Slett samtalen", onClick = { confirmDelete = true })
+                        }
+                    }
+                }
             }
 
             LazyColumn(
@@ -89,12 +147,20 @@ fun ConversationScreen(
             ) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 10.dp)) {
-                        Text(
-                            conversation.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = colors.onBackground,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { renaming = true },
-                        )
+                        if (editing != null) {
+                            TitleEditor(
+                                value = editing,
+                                onChange = { newTitle = it },
+                                onDone = { if (canSave) saveTitle() },
+                            )
+                        } else {
+                            Text(
+                                conversation.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = colors.onBackground,
+                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = ::startRenaming),
+                            )
+                        }
                         Text(
                             "${formatWhen(conversation.createdAtMillis, nowMillis).replaceFirstChar { it.uppercase() }}  ·  ${formatDuration(conversation.durationSeconds)}",
                             style = MaterialTheme.typography.labelMedium,
@@ -106,8 +172,8 @@ fun ConversationScreen(
             }
         }
 
-        // «Fortsett samtalen» nederst, over en myk overgang.
-        Box(
+        // «Fortsett samtalen» nederst, over en myk overgang. Skjult mens man endrer navn.
+        if (editing == null) Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -131,17 +197,6 @@ fun ConversationScreen(
         }
     }
 
-    if (renaming) {
-        RenameDialog(
-            current = conversation.title,
-            onDismiss = { renaming = false },
-            onSave = {
-                renaming = false
-                onRename(it)
-            },
-        )
-    }
-
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -158,28 +213,56 @@ fun ConversationScreen(
     }
 }
 
+/** Tittelen som et felt man skriver rett i, i samme store skrift som før. */
 @Composable
-private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var value by remember { mutableStateOf(TextFieldValue(current, selection = TextRange(0, current.length))) }
+private fun TitleEditor(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, onDone: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     val focus = remember { FocusRequester() }
-    val canSave = value.text.isNotBlank()
     LaunchedEffect(Unit) { focus.requestFocus() }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Endre navn") },
-        text = {
-            OutlinedTextField(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surfaceVariant)
+            .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        val selection = TextSelectionColors(handleColor = KompisPalette.Blue, backgroundColor = KompisPalette.Blue.copy(alpha = 0.25f))
+        CompositionLocalProvider(LocalTextSelectionColors provides selection) {
+            BasicTextField(
                 value = value,
-                onValueChange = { value = it },
-                singleLine = true,
-                placeholder = { Text("Navn på samtalen") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(value.text) }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                onValueChange = onChange,
+                textStyle = MaterialTheme.typography.headlineMedium.copy(color = colors.onBackground),
+                cursorBrush = SolidColor(KompisPalette.Blue),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onDone() }),
+                modifier = Modifier.weight(1f).focusRequester(focus),
+                decorationBox = { inner ->
+                    Box {
+                        if (value.text.isEmpty()) {
+                            Text("Gi samtalen et navn", style = MaterialTheme.typography.headlineMedium, color = colors.onSurfaceVariant)
+                        }
+                        inner()
+                    }
+                },
             )
-        },
-        confirmButton = { TextButton(onClick = { onSave(value.text) }, enabled = canSave) { Text("Lagre") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Avbryt") } },
-    )
+        }
+        if (value.text.isNotEmpty()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(colors.onSurfaceVariant.copy(alpha = 0.25f))
+                    .clickable { onChange(TextFieldValue("")) },
+            ) {
+                Icon(Icons.Rounded.Close, contentDescription = "Tøm", tint = colors.onSurface, modifier = Modifier.size(15.dp))
+            }
+        }
+    }
 }
+
+/** Teksten med alt markert, så man kan skrive rett over det gamle navnet. */
+private fun String.selectedAll() = TextFieldValue(this, selection = TextRange(0, length))
