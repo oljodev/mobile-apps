@@ -71,6 +71,10 @@ final class LiveSession {
     private var serverMessages = 0
     private var lastEvent = "starter"
     private var lastEventAt = Date()
+    /// Hvor mange lydbiter mikrofonen har gitt, og det høyeste nivået, for å se om den virker.
+    private var micBuffers = 0
+    private var micPeak: Float = 0
+    private var micRestarted = false
 
     // Tekstminne. Lyd i samtalen faktureres på nytt for hver tur, så Kompis starter en ny økt med
     // jevne mellomrom og sender samtalen så langt som tekst, som er mye billigere.
@@ -101,6 +105,12 @@ final class LiveSession {
         speechSecondsSent = 0
         serverMessages = 0
         awaitingResponseSince = nil
+        // Taledeteksjonen begynner på nytt, så støy fra forrige samtale ikke gjør at tale blir oversett.
+        noiseFloor = 0.004
+        silentSeconds = 0
+        micBuffers = 0
+        micPeak = 0
+        micRestarted = false
         note("starter")
         listener.onStatus(status: "connecting")
 
@@ -191,7 +201,15 @@ final class LiveSession {
         engine.prepare()
         try engine.start()
         player.play()
+        // Med ekkodemping gir mikrofonen av og til bare stillhet til noe har vært spilt av. Et lite
+        // øyeblikk med stillhet får lyden i gang, også når Kompis ikke sier noe først.
+        if let silence = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: 2400) {
+            silence.frameLength = 2400
+            silence.floatChannelData?[0].update(repeating: 0, count: 2400)
+            player.scheduleBuffer(silence)
+        }
 
+        NotificationCenter.default.removeObserver(self)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(routeChanged),
@@ -208,6 +226,7 @@ final class LiveSession {
     }
 
     private func handleMicrophone(_ buffer: AVAudioPCMBuffer) {
+        micBuffers += 1
         guard isReady || isRolling, !isMuted, let converter else { return }
 
         let ratio = sendFormat.sampleRate / buffer.format.sampleRate
@@ -230,6 +249,7 @@ final class LiveSession {
         let data = Data(bytes: samples[0], count: frames * 2)
         let seconds = Double(frames) / sendFormat.sampleRate
         let level = rms(int16: samples[0], count: frames)
+        micPeak = max(micPeak, level)
         if !isSpeaking {
             reportLevel(level)
         }
@@ -372,7 +392,8 @@ final class LiveSession {
 
     private func reportDebug() {
         let ago = Int(Date().timeIntervalSince(lastEventAt))
-        let text = "\(Int(speechSecondsSent)) s tale sendt · \(serverMessages) meldinger fra Gemini · sist: \(lastEvent) (\(ago) s siden)"
+        let microphone = micBuffers == 0 ? "ingen lyd" : micPeak > 0 ? "ok" : "bare stillhet"
+        let text = "Mikrofon: \(microphone) · \(Int(speechSecondsSent)) s tale sendt · \(serverMessages) meldinger fra Gemini · sist: \(lastEvent) (\(ago) s siden)"
         listener?.onDebug(text: text)
     }
 
@@ -489,6 +510,41 @@ final class LiveSession {
         }
     }
 
+    // MARK: - Mikrofonsjekk
+
+    /// Sjekker at mikrofonen faktisk gir lyd. Gjør den ikke det, startes lyden på nytt én gang.
+    private func checkMicrophone(after delay: TimeInterval) {
+        let current = connection
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.isRunning, current == self.connection, !self.isMuted else { return }
+            let working = self.micBuffers > 0 && self.micPeak > 0
+            if working {
+                return
+            }
+            if self.micRestarted {
+                self.note(self.micBuffers == 0 ? "mikrofonen gir ingen lyd" : "mikrofonen gir bare stillhet")
+                return
+            }
+            self.micRestarted = true
+            self.note(self.micBuffers == 0 ? "ingen lyd fra mikrofonen, starter den på nytt" : "bare stillhet fra mikrofonen, starter den på nytt")
+            self.restartAudio()
+            self.checkMicrophone(after: 2.5)
+        }
+    }
+
+    private func restartAudio() {
+        engine.inputNode.removeTap(onBus: 0)
+        player.stop()
+        engine.stop()
+        micBuffers = 0
+        micPeak = 0
+        do {
+            try startAudio()
+        } catch {
+            fail("Kunne ikke starte lyden: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Tilkobling
 
     private func connect() {
@@ -558,6 +614,7 @@ final class LiveSession {
             isReady = true
             reconnectAttempts = 0
             startWatchdog()
+            checkMicrophone(after: 2.5)
             note("koblet til")
             listener?.onStatus(status: "listening")
             flushBufferedAudio()
