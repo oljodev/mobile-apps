@@ -20,6 +20,18 @@ final class LiveSession {
             let role: String
             let text: String
         }
+
+        /// Instruksjonene, med samtalen så langt til slutt. Gemini får tidligere meldinger her i
+        /// stedet for som egne meldinger, for da tror den at det er dens tur til å svare.
+        var instructionWithHistory: String {
+            guard !history.isEmpty else { return systemInstruction }
+            let transcript = history
+                .map { "\($0.role == "user" ? "Brukeren" : "Du"): \($0.text)" }
+                .joined(separator: "\n")
+            return systemInstruction + "\n\n" +
+                "Dette er samtalen så langt. Fortsett den naturlig når brukeren sier noe, og ikke gjenta det som alt er sagt:\n" +
+                transcript
+        }
     }
 
     private var config: Config?
@@ -579,7 +591,7 @@ final class LiveSession {
                 "responseModalities": ["AUDIO"],
                 "speechConfig": ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": config.voice]]],
             ],
-            "systemInstruction": ["parts": [["text": config.systemInstruction]]],
+            "systemInstruction": ["parts": [["text": config.instructionWithHistory]]],
             "inputAudioTranscription": [String: Any](),
             "outputAudioTranscription": [String: Any](),
             // Uten dette stopper samtalen etter 15 minutter.
@@ -593,15 +605,11 @@ final class LiveSession {
             ],
             "sessionResumption": resumptionHandle.map { ["handle": $0] } ?? [String: Any](),
         ]
-        let sendHistory = resumptionHandle == nil && !config.history.isEmpty
-        if sendHistory {
-            setup["historyConfig"] = ["initialHistoryInClientContent": true]
-        }
         send(["setup": setup])
-        receive(on: socket, connection: current, sendHistory: sendHistory)
+        receive(on: socket, connection: current)
     }
 
-    private func receive(on socket: URLSessionWebSocketTask, connection current: Int, sendHistory: Bool) {
+    private func receive(on socket: URLSessionWebSocketTask, connection current: Int) {
         socket.receive { [weak self] result in
             DispatchQueue.main.async {
                 guard let self, current == self.connection else { return }
@@ -614,9 +622,9 @@ final class LiveSession {
                     @unknown default: data = nil
                     }
                     if let data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        self.handle(json, sendHistory: sendHistory)
+                        self.handle(json)
                     }
-                    self.receive(on: socket, connection: current, sendHistory: sendHistory)
+                    self.receive(on: socket, connection: current)
                 case .failure:
                     self.connectionLost(socket)
                 }
@@ -624,13 +632,9 @@ final class LiveSession {
         }
     }
 
-    private func handle(_ message: [String: Any], sendHistory: Bool) {
+    private func handle(_ message: [String: Any]) {
         serverMessages += 1
         if message["setupComplete"] != nil {
-            if sendHistory, let config {
-                let turns = config.history.map { ["role": $0.role, "parts": [["text": $0.text]]] }
-                send(["clientContent": ["turns": turns, "turnComplete": true]])
-            }
             isReady = true
             reconnectAttempts = 0
             startWatchdog()
