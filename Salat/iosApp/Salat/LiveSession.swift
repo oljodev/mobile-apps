@@ -55,8 +55,9 @@ final class LiveSession {
     /// Lyden rett før man begynte å snakke, så første stavelse ikke forsvinner.
     private var preRoll: [Data] = []
     private var preRollSeconds: Double = 0
-    /// Hvor lenge det må være stille før Gemini får beskjed om at man er ferdig.
-    private static let hangoverSeconds = 1.2
+    /// Hvor lenge det må være stille før Gemini får beskjed om at man er ferdig. Kortere gir raskere
+    /// svar, men for kort gjør at Kompis svarer midt i en pause.
+    private static let hangoverSeconds = 0.6
     private static let maxPreRollSeconds = 0.4
     /// Lydnivået tale må over, uansett hvor stille det er rundt.
     private static let minSpeechLevel: Float = 0.006
@@ -75,6 +76,10 @@ final class LiveSession {
     private var micBuffers = 0
     private var micPeak: Float = 0
     private var micRestarted = false
+    /// Når man sist sa noe, og hvor lenge det tok før svaret begynte.
+    private var lastSpeechAt = Date.distantPast
+    private var waitingForFirstAudio = false
+    private var responseDelay: TimeInterval?
 
     // Tekstminne. Lyd i samtalen faktureres på nytt for hver tur, så Kompis starter en ny økt med
     // jevne mellomrom og sender samtalen så langt som tekst, som er mye billigere.
@@ -111,6 +116,8 @@ final class LiveSession {
         micBuffers = 0
         micPeak = 0
         micRestarted = false
+        responseDelay = nil
+        waitingForFirstAudio = false
         note("starter")
         listener.onStatus(status: "connecting")
 
@@ -262,6 +269,11 @@ final class LiveSession {
 
         if isSpeech {
             silentSeconds = 0
+            let now = Date()
+            DispatchQueue.main.async {
+                self.lastSpeechAt = now
+                self.waitingForFirstAudio = true
+            }
             if !isSendingSpeech {
                 isSendingSpeech = true
                 for chunk in preRoll {
@@ -393,7 +405,8 @@ final class LiveSession {
     private func reportDebug() {
         let ago = Int(Date().timeIntervalSince(lastEventAt))
         let microphone = micBuffers == 0 ? "ingen lyd" : micPeak > 0 ? "ok" : "bare stillhet"
-        let text = "Mikrofon: \(microphone) · \(Int(speechSecondsSent)) s tale sendt · \(serverMessages) meldinger fra Gemini · sist: \(lastEvent) (\(ago) s siden)"
+        let delay = responseDelay.map { " · svar etter " + String(format: "%.1f", $0).replacingOccurrences(of: ".", with: ",") + " s" } ?? ""
+        let text = "Mikrofon: \(microphone)\(delay) · \(Int(speechSecondsSent)) s tale sendt · \(serverMessages) meldinger fra Gemini · sist: \(lastEvent) (\(ago) s siden)"
         listener?.onDebug(text: text)
     }
 
@@ -571,6 +584,13 @@ final class LiveSession {
             "outputAudioTranscription": [String: Any](),
             // Uten dette stopper samtalen etter 15 minutter.
             "contextWindowCompression": ["slidingWindow": [String: Any]()],
+            // Gemini merker selv når man er ferdig å snakke. Dette gjør at den reagerer raskere på stillhet.
+            "realtimeInputConfig": [
+                "automaticActivityDetection": [
+                    "endOfSpeechSensitivity": "END_SENSITIVITY_HIGH",
+                    "silenceDurationMs": 400,
+                ],
+            ],
             "sessionResumption": resumptionHandle.map { ["handle": $0] } ?? [String: Any](),
         ]
         let sendHistory = resumptionHandle == nil && !config.history.isEmpty
@@ -634,6 +654,11 @@ final class LiveSession {
         }
 
         guard let content = message["serverContent"] as? [String: Any] else { return }
+        // Hvor lang tid det tok fra man sluttet å snakke til svaret begynte, for diagnoselinjen.
+        if waitingForFirstAudio, content["modelTurn"] != nil {
+            waitingForFirstAudio = false
+            responseDelay = Date().timeIntervalSince(lastSpeechAt)
+        }
         awaitingResponseSince = nil
 
         if content["interrupted"] as? Bool == true {
