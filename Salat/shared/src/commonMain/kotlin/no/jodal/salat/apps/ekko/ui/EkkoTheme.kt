@@ -8,12 +8,22 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import no.jodal.salat.resources.Res
+import no.jodal.salat.resources.inter_bold
+import no.jodal.salat.resources.inter_medium
+import no.jodal.salat.resources.inter_regular
+import no.jodal.salat.resources.inter_semibold
+import no.jodal.salat.resources.space_grotesk_bold
+import no.jodal.salat.resources.space_grotesk_medium
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 
 /**
- * Ekko sitt uttrykk: mørkt som en musikkspiller, med lime som eneste aksentfarge. Hver lyd får sitt
+ * Ekko sitt uttrykk: mørkt som en musikkspiller, med lime som eneste aksentfarge og Space Grotesk i overskriftene. Hver lyd får sitt
  * eget omslag i to farger, så listene blir fargerike uten bilder.
  */
 object EkkoPalette {
@@ -58,27 +68,43 @@ private val EkkoColors = darkColorScheme(
     error = EkkoPalette.Danger,
 )
 
+/** Space Grotesk til overskrifter, Inter til resten. */
+@Composable
+private fun ekkoTypography(): Typography {
+    val display = FontFamily(
+        Font(Res.font.space_grotesk_medium, FontWeight.Medium),
+        Font(Res.font.space_grotesk_bold, FontWeight.Bold),
+    )
+    val text = FontFamily(
+        Font(Res.font.inter_regular, FontWeight.Normal),
+        Font(Res.font.inter_medium, FontWeight.Medium),
+        Font(Res.font.inter_semibold, FontWeight.SemiBold),
+        Font(Res.font.inter_bold, FontWeight.Bold),
+    )
+    fun d(size: Int, spacing: Double, line: Int = (size * 1.15).toInt()) =
+        TextStyle(fontFamily = display, fontWeight = FontWeight.Bold, fontSize = size.sp, lineHeight = line.sp, letterSpacing = spacing.sp)
+    fun t(size: Int, weight: FontWeight, line: Int, spacing: Double = 0.0) =
+        TextStyle(fontFamily = text, fontWeight = weight, fontSize = size.sp, lineHeight = line.sp, letterSpacing = spacing.sp)
+    return Typography(
+        displaySmall = d(40, -1.6),
+        headlineMedium = d(30, -1.0),
+        headlineSmall = d(25, -0.7, 30),
+        titleLarge = d(21, -0.4, 26),
+        titleMedium = t(16, FontWeight.SemiBold, 21, -0.2),
+        titleSmall = t(14, FontWeight.SemiBold, 19, -0.1),
+        bodyLarge = t(16, FontWeight.Normal, 23, -0.2),
+        bodyMedium = t(14, FontWeight.Normal, 20, -0.1),
+        bodySmall = t(12, FontWeight.Normal, 16),
+        labelLarge = t(14, FontWeight.SemiBold, 18, -0.1),
+        labelMedium = t(12, FontWeight.Medium, 16).copy(fontFeatureSettings = "tnum"),
+        labelSmall = t(11, FontWeight.SemiBold, 14, 1.0),
+    )
+}
+
 /** Ekko er alltid mørk, som en musikkspiller. */
 @Composable
 fun EkkoTheme(content: @Composable () -> Unit) {
-    val base = MaterialTheme.typography
-    MaterialTheme(
-        colorScheme = EkkoColors,
-        typography = Typography(
-            displaySmall = base.displaySmall.copy(fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp),
-            headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp),
-            headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
-            titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
-            titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
-            titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            bodyLarge = base.bodyLarge.copy(fontSize = 17.sp, lineHeight = 24.sp),
-            bodyMedium = base.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
-            bodySmall = base.bodySmall,
-            labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            labelMedium = base.labelMedium.copy(fontWeight = FontWeight.Medium),
-            labelSmall = base.labelSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp),
-        ),
-    ) {
+    MaterialTheme(colorScheme = EkkoColors, typography = ekkoTypography()) {
         val selection = TextSelectionColors(handleColor = EkkoPalette.Lime, backgroundColor = EkkoPalette.Lime.copy(alpha = 0.3f))
         CompositionLocalProvider(LocalTextSelectionColors provides selection, content = content)
     }
