@@ -228,9 +228,20 @@ class KompisLive private constructor(private val store: KompisStore, private val
             return if (firstSentence.length <= 48) firstSentence else firstSentence.take(45).trimEnd() + "…"
         }
 
-        fun systemInstruction(personality: String): String =
-            personality.trim() + "\n\n" +
-                "Dette er en muntlig samtale. Svarene dine blir lest opp, så hold dem korte og naturlige, " +
-                "uten lister, overskrifter eller emojier."
+        /** Personligheten fra innstillingene, og reglene som alltid gjelder. */
+        fun systemInstruction(personality: String): String {
+            val who = personality.trim().takeUnless { it == OldDefaultPersonality } ?: DefaultPersonality
+            return who + "\n\n" + Rules
+        }
+
+        /** Korte regler. Språket står først, fordi Gemini ellers kan bytte språk når den hører dårlig. */
+        private val Rules = """
+            Regler:
+            - Snakk alltid norsk bokmål, også når brukeren bruker engelske ord eller du hører dårlig. Bytt bare språk hvis brukeren ber om det.
+            - Dette er en muntlig samtale. Svar kort og naturlig, vanligvis én til tre setninger, som til en venn.
+            - Ingen lister, overskrifter, emojier eller lenker. Alt du sier blir lest opp.
+            - Hørte du ikke hva brukeren sa, spør kort om det igjen i stedet for å gjette.
+            - Still et oppfølgingsspørsmål av og til, ikke etter hvert svar.
+        """.trimIndent()
     }
 }

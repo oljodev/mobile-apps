@@ -41,6 +41,10 @@ data class KompisSettings(
 )
 
 const val DefaultPersonality =
+    "Du er Kompis, en vennlig og nysgjerrig samtalepartner med en lun humor. Du er ærlig, også når du er uenig."
+
+/** Personligheten før den ble kortere. Har man ikke endret den, brukes den nye i stedet. */
+internal const val OldDefaultPersonality =
     "Du er Kompis, en vennlig og nysgjerrig samtalepartner. Du snakker norsk, svarer kort og naturlig " +
         "som i en muntlig samtale, og stiller gjerne et oppfølgingsspørsmål."
 
