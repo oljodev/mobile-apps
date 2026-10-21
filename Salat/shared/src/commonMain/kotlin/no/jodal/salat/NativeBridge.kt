@@ -110,6 +110,9 @@ interface NativeBridge {
      * widgetene tegne seg på nytt hvis noe er endret.
      */
     fun saveWidgetData(name: String, json: String)
+
+    /** En liten vibrasjon: `light`, `selection`, `rigid`, `success` eller `warning`. */
+    fun haptic(kind: String)
 }
 
 /** Hvordan det går med å hente en lyd. Kalles alltid på hovedtråden. */

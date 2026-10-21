@@ -137,4 +137,14 @@ final class IosNativeBridge: NSObject, NativeBridge {
     func saveWidgetData(name: String, json: String) {
         WidgetActions.save(name, Data(json.utf8))
     }
+
+    func haptic(kind: String) {
+        switch kind {
+        case "selection": UISelectionFeedbackGenerator().selectionChanged()
+        case "rigid": UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        case "success": UINotificationFeedbackGenerator().notificationOccurred(.success)
+        case "warning": UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
 }

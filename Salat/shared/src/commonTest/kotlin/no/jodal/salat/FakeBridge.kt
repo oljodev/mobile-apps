@@ -80,4 +80,6 @@ internal object FakeBridge : NativeBridge {
     override fun saveWidgetData(name: String, json: String) {
         widgetData[name] = json
     }
+
+    override fun haptic(kind: String) = Unit
 }

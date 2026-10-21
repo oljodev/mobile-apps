@@ -40,6 +40,7 @@ import no.jodal.salat.ui.tint
 
 @Composable
 fun SalatApp(bridge: NativeBridge, darkTheme: Boolean = isSystemInDarkTheme()) {
+    Haptics.bridge = bridge
     SalatTheme(darkTheme) {
         var openApp by remember { mutableStateOf<MiniApp?>(null) }
         // En lenke fra en widget åpner mini-appen. Har lenken noe mer å gjøre, tar mini-appen seg av det.
