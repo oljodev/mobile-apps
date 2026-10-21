@@ -1,15 +1,13 @@
 package no.jodal.salat.apps.ekko.ui
 
+import no.jodal.salat.Haptics
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -161,7 +160,6 @@ fun PlayingBars(playing: Boolean, color: Color, modifier: Modifier = Modifier) {
 }
 
 /** En lyd i en liste. Trykk for å spille, hold inne eller trykk på «…» for mer. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClipRow(clip: Clip, isCurrent: Boolean, isPlaying: Boolean, onClick: () -> Unit, onMore: () -> Unit) {
     Row(
@@ -170,7 +168,7 @@ fun ClipRow(clip: Clip, isCurrent: Boolean, isPlaying: Boolean, onClick: () -> U
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onMore)
+            .pressable(onClick, pressedScale = 0.97f, onLongClick = onMore)
             .padding(horizontal = 8.dp, vertical = 7.dp),
     ) {
         ClipCover(clip, 52.dp)
@@ -208,6 +206,7 @@ fun RoundIconButton(
     tint: Color = EkkoPalette.Text,
     iconSize: Dp = size * 0.5f,
     enabled: Boolean = true,
+    haptic: () -> Unit = Haptics::tap,
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -216,7 +215,7 @@ fun RoundIconButton(
             .alpha(if (enabled) 1f else 0.35f)
             .clip(CircleShape)
             .background(background)
-            .clickable(enabled = enabled, onClick = onClick),
+            .pressable(onClick, enabled = enabled, pressedScale = 0.9f, haptic = haptic),
     ) {
         Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(iconSize))
     }
@@ -251,7 +250,7 @@ private fun PillButton(
             .height(52.dp)
             .clip(CircleShape)
             .background(if (enabled) background else EkkoPalette.Surface)
-            .clickable(enabled = enabled, onClick = onClick)
+            .pressable(onClick, enabled = enabled, pressedScale = 0.97f)
             .padding(horizontal = 22.dp),
     ) {
         val color = if (enabled) content else EkkoPalette.TextDim
@@ -326,7 +325,7 @@ fun SheetAction(icon: ImageVector, text: String, onClick: () -> Unit, color: Col
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .pressable(onClick, pressedScale = 0.98f)
             .padding(horizontal = 12.dp, vertical = 14.dp),
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
@@ -338,4 +337,41 @@ fun SheetAction(icon: ImageVector, text: String, onClick: () -> Unit, color: Col
 @Composable
 fun Hairline(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(1.dp).background(EkkoPalette.Line))
+}
+
+/** Søkefeltet øverst i Ekko. */
+@Composable
+fun SearchField(query: String, onQuery: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(EkkoPalette.Surface)
+            .padding(start = 12.dp, end = 8.dp),
+    ) {
+        Icon(Icons.Rounded.Search, contentDescription = null, tint = EkkoPalette.TextDim, modifier = Modifier.size(20.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onQuery,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = EkkoPalette.Text),
+            cursorBrush = SolidColor(EkkoPalette.Lime),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            modifier = Modifier.weight(1f),
+            decorationBox = { inner ->
+                Box {
+                    if (query.isEmpty()) {
+                        Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = EkkoPalette.TextDim, maxLines = 1)
+                    }
+                    inner()
+                }
+            },
+        )
+        if (query.isNotEmpty()) {
+            RoundIconButton(Icons.Rounded.Close, "Tøm søket", { onQuery("") }, size = 22.dp, background = EkkoPalette.Line, iconSize = 13.dp)
+        }
+    }
 }

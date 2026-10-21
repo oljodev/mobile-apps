@@ -1,8 +1,9 @@
 package no.jodal.salat.apps.ekko.ui
 
+import no.jodal.salat.Haptics
+import kotlin.math.floor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -142,7 +143,7 @@ fun ClipEditor(
                     .padding(top = 8.dp)
                     .clip(CircleShape)
                     .background(EkkoPalette.Surface)
-                    .clickable { if (preview != null) player.stopPreview() else player.startPreview(clipId, start, end) }
+                    .pressable({ if (preview != null) player.stopPreview() else player.startPreview(clipId, start, end) })
                     .padding(start = 14.dp, end = 20.dp, top = 10.dp, bottom = 10.dp),
             ) {
                 Icon(
@@ -205,6 +206,7 @@ private fun Trimmer(
                     val reach = 28.dp.toPx()
                     detectDragGestures(
                         onDragStart = { offset ->
+                            Haptics.select()
                             val startX = xOf(currentStart)
                             val endX = xOf(currentEnd)
                             mode = when {
@@ -219,14 +221,17 @@ private fun Trimmer(
                         val delta = amount.x / track * duration
                         val s = currentStart
                         val e = currentEnd
-                        when (mode) {
-                            1 -> currentOnChange((s + delta).coerceIn(0.0, e - MinLength), e)
-                            2 -> currentOnChange(s, (e + delta).coerceIn(s + MinLength, duration))
-                            3 -> {
-                                val shift = delta.coerceIn(-s, duration - e)
-                                currentOnChange(s + shift, e + shift)
-                            }
+                        val (newStart, newEnd) = when (mode) {
+                            1 -> (s + delta).coerceIn(0.0, e - MinLength) to e
+                            2 -> s to (e + delta).coerceIn(s + MinLength, duration)
+                            3 -> delta.coerceIn(-s, duration - e).let { s + it to e + it }
+                            else -> return@detectDragGestures
                         }
+                        // Et lite klikk for hvert halve sekund, og et fastere når man treffer kanten.
+                        val moved = if (mode == 2) e to newEnd else s to newStart
+                        val hitEdge = (newStart == 0.0 && s > 0.0) || (newEnd == duration && e < duration)
+                        if (hitEdge) Haptics.firm() else if (floor(moved.first * 2) != floor(moved.second * 2)) Haptics.select()
+                        currentOnChange(newStart, newEnd)
                     }
                 },
         ) {
@@ -280,9 +285,9 @@ private fun TimeNudger(label: String, seconds: Double, onMinus: () -> Unit, onPl
     Column(horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SectionLabel(label)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            RoundIconButton(Icons.Rounded.Remove, "$label tidligere", onMinus, size = 30.dp, iconSize = 16.dp)
+            RoundIconButton(Icons.Rounded.Remove, "$label tidligere", onMinus, size = 30.dp, iconSize = 16.dp, haptic = Haptics::select)
             Text(formatPrecise(seconds), style = MaterialTheme.typography.titleMedium, color = EkkoPalette.Text)
-            RoundIconButton(Icons.Rounded.Add, "$label senere", onPlus, size = 30.dp, iconSize = 16.dp)
+            RoundIconButton(Icons.Rounded.Add, "$label senere", onPlus, size = 30.dp, iconSize = 16.dp, haptic = Haptics::select)
         }
     }
 }

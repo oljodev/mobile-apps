@@ -2,7 +2,6 @@ package no.jodal.salat.apps.ekko.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import no.jodal.salat.Haptics
 import no.jodal.salat.apps.ekko.Clip
 import no.jodal.salat.apps.ekko.EkkoStore
 import no.jodal.salat.apps.ekko.Playlist
@@ -205,7 +205,7 @@ private fun PickRow(leading: @Composable () -> Unit, title: String, subtitle: St
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).pressable(onClick, pressedScale = 0.98f, haptic = Haptics::select).padding(horizontal = 12.dp, vertical = 7.dp),
     ) {
         leading()
         Column(Modifier.weight(1f)) {
@@ -286,7 +286,7 @@ fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () ->
 private fun PillAction(text: String, background: Color, color: Color, onClick: () -> Unit, modifier: Modifier) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.height(48.dp).clip(CircleShape).background(background).clickable(onClick = onClick),
+        modifier = modifier.height(48.dp).clip(CircleShape).background(background).pressable(onClick),
     ) {
         Text(text, style = MaterialTheme.typography.titleSmall, color = color)
     }

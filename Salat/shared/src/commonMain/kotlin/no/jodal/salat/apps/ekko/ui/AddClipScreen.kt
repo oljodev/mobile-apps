@@ -1,5 +1,6 @@
 package no.jodal.salat.apps.ekko.ui
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,7 +12,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import no.jodal.salat.Haptics
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.ekko.EkkoImporter
 import no.jodal.salat.apps.ekko.EkkoPlayer
@@ -70,6 +71,9 @@ fun AddClipScreen(
     onSaved: () -> Unit,
 ) {
     val state = importer.state
+    LaunchedEffect(state is EkkoImporter.State.Ready) {
+        if (state is EkkoImporter.State.Ready) Haptics.success()
+    }
     AnimatedContent(
         targetState = state is EkkoImporter.State.Ready,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -146,7 +150,7 @@ private fun SourcePicker(state: EkkoImporter.State, importer: EkkoImporter, brid
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(EkkoPalette.SurfaceHigh)
-                                .clickable { bridge.ekkoPasteboardText()?.let { link = it.trim() } }
+                                .pressable({ bridge.ekkoPasteboardText()?.let { link = it.trim() } })
                                 .padding(horizontal = 12.dp, vertical = 7.dp),
                         ) {
                             Icon(Icons.Rounded.ContentPaste, contentDescription = null, tint = EkkoPalette.Lime, modifier = Modifier.size(16.dp))
@@ -192,7 +196,7 @@ private fun SourceTile(icon: ImageVector, title: String, subtitle: String, onCli
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(EkkoPalette.Surface)
-            .clickable(onClick = onClick)
+            .pressable(onClick, pressedScale = 0.97f)
             .padding(16.dp),
     ) {
         Box(
@@ -253,12 +257,12 @@ private fun LoadingWave(progress: Float?, modifier: Modifier) {
 /** Toppen av skjermene for å legge til og redigere: «Avbryt», tittel og eventuelt «Lagre». */
 @Composable
 fun EditorTopBar(title: String, onCancel: () -> Unit, onSave: (() -> Unit)? = null, canSave: Boolean = true) {
-    Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 12.dp)) {
+    Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(start = 12.dp, end = 16.dp)) {
         Text(
             "Avbryt",
             style = MaterialTheme.typography.bodyLarge,
             color = EkkoPalette.TextDim,
-            modifier = Modifier.align(Alignment.CenterStart).clip(CircleShape).clickable(onClick = onCancel).padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier = Modifier.align(Alignment.CenterStart).clip(CircleShape).pressable(onCancel).padding(horizontal = 8.dp, vertical = 8.dp),
         )
         Text(title, style = MaterialTheme.typography.titleMedium, color = EkkoPalette.Text, modifier = Modifier.align(Alignment.Center))
         if (onSave != null) {
@@ -270,7 +274,7 @@ fun EditorTopBar(title: String, onCancel: () -> Unit, onSave: (() -> Unit)? = nu
                     .align(Alignment.CenterEnd)
                     .clip(CircleShape)
                     .background(if (canSave) EkkoPalette.Lime else EkkoPalette.Lime.copy(alpha = 0.35f))
-                    .clickable(enabled = canSave, onClick = onSave)
+                    .pressable(onSave, enabled = canSave, haptic = Haptics::success)
                     .padding(horizontal = 18.dp, vertical = 8.dp),
             )
         }

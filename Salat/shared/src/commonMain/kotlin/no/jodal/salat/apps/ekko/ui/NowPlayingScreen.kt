@@ -1,5 +1,11 @@
 package no.jodal.salat.apps.ekko.ui
 
+import no.jodal.salat.Haptics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -88,7 +94,20 @@ fun NowPlayingScreen(store: EkkoStore, player: EkkoPlayer, onClose: () -> Unit, 
             Spacer(Modifier.weight(0.6f))
             BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 val size = minOf(maxWidth, 360.dp)
-                ClipCover(clip, size, corner = 28.dp, bars = 21)
+                // Omslaget krymper litt når lyden er på pause, som i Apple Music.
+                val scale by animateFloatAsState(if (player.isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 260f))
+                ClipCover(
+                    clip,
+                    size,
+                    corner = 28.dp,
+                    bars = 21,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .shadow(40.dp * scale, RoundedCornerShape(28.dp), ambientColor = glow, spotColor = glow),
+                )
             }
             Spacer(Modifier.weight(0.5f))
 
@@ -132,6 +151,7 @@ fun NowPlayingScreen(store: EkkoStore, player: EkkoPlayer, onClose: () -> Unit, 
                     background = if (repeat != Repeat.Off) EkkoPalette.Lime.copy(alpha = 0.14f) else EkkoPalette.Surface,
                     tint = if (repeat != Repeat.Off) EkkoPalette.Lime else EkkoPalette.TextDim,
                     iconSize = 22.dp,
+                    haptic = Haptics::select,
                 )
             }
             Spacer(Modifier.weight(0.4f))

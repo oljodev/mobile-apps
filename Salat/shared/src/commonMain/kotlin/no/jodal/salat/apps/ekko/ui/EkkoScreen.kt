@@ -1,6 +1,27 @@
 package no.jodal.salat.apps.ekko.ui
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.layout
+import no.jodal.salat.apps.ekko.ClipFilter
+import no.jodal.salat.apps.ekko.people
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -12,7 +33,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +77,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import no.jodal.salat.Haptics
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.ekko.Clip
 import no.jodal.salat.apps.ekko.EkkoImporter
@@ -98,6 +119,7 @@ fun EkkoScreen(bridge: NativeBridge, onBack: () -> Unit) {
             mutableStateOf<EkkoDestination>(if (importer.state is EkkoImporter.State.Idle) EkkoDestination.Home else EkkoDestination.Add)
         }
         var tab by remember { mutableStateOf(EkkoTab.Sounds) }
+        var filter by remember { mutableStateOf(ClipFilter()) }
         var nowPlayingOpen by remember { mutableStateOf(false) }
         var sheet by remember { mutableStateOf<EkkoSheet?>(null) }
         var confirmDelete by remember { mutableStateOf<Clip?>(null) }
@@ -126,6 +148,8 @@ fun EkkoScreen(bridge: NativeBridge, onBack: () -> Unit) {
                         player = player,
                         tab = tab,
                         onTab = { tab = it },
+                        filter = filter,
+                        onFilter = { filter = it },
                         onBack = onBack,
                         onAdd = { destination = EkkoDestination.Add },
                         onMore = { sheet = EkkoSheet.ClipActions(it, null) },
@@ -302,6 +326,7 @@ fun EkkoScreen(bridge: NativeBridge, onBack: () -> Unit) {
                 confirm = "Slett",
                 onDismiss = { confirmDelete = null },
                 onConfirm = {
+                    Haptics.warning()
                     player.forget(clip.id)
                     store.deleteClip(clip.id)
                     confirmDelete = null
@@ -315,6 +340,7 @@ fun EkkoScreen(bridge: NativeBridge, onBack: () -> Unit) {
                 confirm = "Slett",
                 onDismiss = { confirmDeletePlaylist = null },
                 onConfirm = {
+                    Haptics.warning()
                     store.deletePlaylist(playlist.id)
                     confirmDeletePlaylist = null
                     destination = EkkoDestination.Home
@@ -340,6 +366,8 @@ fun EkkoHome(
     player: EkkoPlayer,
     tab: EkkoTab,
     onTab: (EkkoTab) -> Unit,
+    filter: ClipFilter,
+    onFilter: (ClipFilter) -> Unit,
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onMore: (Clip) -> Unit,
@@ -347,82 +375,216 @@ fun EkkoHome(
     onNewPlaylist: () -> Unit,
 ) {
     val library = store.library
-    Column(Modifier.fillMaxSize().background(EkkoPalette.Ink)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().statusBarsPadding().height(52.dp).padding(start = 6.dp, end = 16.dp),
-        ) {
-            BackButton(onBack, color = EkkoPalette.Lime)
-            Spacer(Modifier.weight(1f))
-            RoundIconButton(Icons.Rounded.Add, "Legg til lyd", onAdd, size = 36.dp, background = EkkoPalette.Lime, tint = EkkoPalette.OnLime, iconSize = 22.dp)
-        }
+    val shown = library.filter(filter::matches)
+    val source = if (filter.isActive) EkkoPlayer.QueueSource("filter", filter.label) else EkkoPlayer.QueueSource.All
+    val people = people(library)
+    val listState = rememberLazyListState()
+    // Når den store tittelen er scrollet bort, vises en liten tittel i toppen i stedet.
+    val collapsed by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 90 } }
+    val barAlpha by animateFloatAsState(if (collapsed) 1f else 0f, tween(180))
+
+    Box(Modifier.fillMaxSize().background(EkkoPalette.Ink)) {
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = bottomSpace()),
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                end = 12.dp,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 52.dp,
+                bottom = bottomSpace(),
+            ),
         ) {
-            item {
+            item(key = "title") {
                 Text(
                     "Ekko",
                     style = MaterialTheme.typography.displaySmall,
                     color = EkkoPalette.Text,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 14.dp),
+                    modifier = Modifier.padding(start = 8.dp, top = 2.dp, bottom = 16.dp).alpha(1f - barAlpha),
                 )
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 8.dp, bottom = 18.dp)) {
-                    TabChip("Lyder", tab == EkkoTab.Sounds) { onTab(EkkoTab.Sounds) }
-                    TabChip("Spillelister", tab == EkkoTab.Playlists) { onTab(EkkoTab.Playlists) }
-                }
+            item(key = "search") {
+                SearchField(
+                    query = filter.query,
+                    onQuery = { onFilter(filter.copy(query = it)) },
+                    placeholder = if (tab == EkkoTab.Sounds) "Søk etter lyder og personer" else "Søk i spillelister",
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+            item(key = "tabs") {
+                SegmentedTabs(
+                    options = listOf("Lyder", "Spillelister"),
+                    selected = tab.ordinal,
+                    onSelect = { onTab(EkkoTab.entries[it]) },
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 12.dp, bottom = 14.dp),
+                )
             }
             when (tab) {
                 EkkoTab.Sounds -> {
-                    if (library.isEmpty()) {
-                        item { EmptyLibrary(onAdd) }
-                    } else {
-                        item {
-                            PlayHeader(
-                                summary = formatCount(library.size, library.sumOf { it.lengthSeconds }),
-                                shuffle = store.data.shuffle,
-                                isPlayingThis = player.isPlaying && player.isFrom(EkkoPlayer.QueueSource.All),
-                                onShuffle = player::toggleShuffle,
-                                onPlay = { player.playOrPause(library, EkkoPlayer.QueueSource.All) },
-                                modifier = Modifier.padding(start = 8.dp, end = 4.dp, bottom = 8.dp),
+                    if (people.isNotEmpty()) {
+                        item(key = "people") {
+                            PersonChips(
+                                people = people,
+                                selected = filter.person,
+                                onSelect = { onFilter(filter.copy(person = it)) },
+                                modifier = Modifier.padding(bottom = 14.dp),
                             )
                         }
-                        items(library, key = { it.id }) { clip ->
-                            ClipRow(
-                                clip = clip,
-                                isCurrent = player.current?.id == clip.id,
-                                isPlaying = player.isPlaying,
-                                onClick = { player.playClip(library, clip, EkkoPlayer.QueueSource.All) },
-                                onMore = { onMore(clip) },
-                            )
+                    }
+                    when {
+                        library.isEmpty() -> item(key = "empty") { EmptyLibrary(onAdd) }
+                        shown.isEmpty() -> item(key = "none") { NoMatches(onClear = { onFilter(ClipFilter()) }) }
+                        else -> {
+                            item(key = "header") {
+                                PlayHeader(
+                                    summary = formatCount(shown.size, shown.sumOf { it.lengthSeconds }),
+                                    shuffle = store.data.shuffle,
+                                    isPlayingThis = player.isPlaying && player.isFrom(source),
+                                    onShuffle = player::toggleShuffle,
+                                    onPlay = { player.playOrPause(shown, source) },
+                                    modifier = Modifier.padding(start = 8.dp, end = 4.dp, bottom = 6.dp).animateItem(),
+                                )
+                            }
+                            items(shown, key = { it.id }) { clip ->
+                                Box(Modifier.animateItem()) {
+                                    ClipRow(
+                                        clip = clip,
+                                        isCurrent = player.current?.id == clip.id,
+                                        isPlaying = player.isPlaying,
+                                        onClick = { player.playClip(shown, clip, source) },
+                                        onMore = { onMore(clip) },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
                 EkkoTab.Playlists -> {
-                    item { NewPlaylistRow(onNewPlaylist) }
-                    items(store.data.playlists.sortedByDescending { it.createdAtMillis }, key = { it.id }) { playlist ->
-                        PlaylistRow(playlist, store.clipsIn(playlist), onClick = { onOpenPlaylist(playlist) })
+                    val playlists = store.data.playlists.sortedByDescending { it.createdAtMillis }.filter(filter::matches)
+                    if (filter.query.isBlank()) item(key = "new") { NewPlaylistRow(onNewPlaylist) }
+                    if (playlists.isEmpty() && filter.query.isNotBlank()) {
+                        item(key = "none") { NoMatches(onClear = { onFilter(filter.copy(query = "")) }) }
                     }
+                    items(playlists, key = { it.id }) { playlist ->
+                        Box(Modifier.animateItem()) {
+                            PlaylistRow(playlist, store.clipsIn(playlist), onClick = { onOpenPlaylist(playlist) })
+                        }
+                    }
+                }
+            }
+        }
+
+        // Toppen ligger over listen, og blir mørk med en liten tittel når man har scrollet.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(EkkoPalette.Ink.copy(alpha = 0.94f * barAlpha))
+                .statusBarsPadding()
+                .height(52.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize().padding(start = 6.dp, end = 16.dp),
+            ) {
+                BackButton(onBack, color = EkkoPalette.Lime)
+                Spacer(Modifier.weight(1f))
+                RoundIconButton(Icons.Rounded.Add, "Legg til lyd", onAdd, size = 36.dp, background = EkkoPalette.Lime, tint = EkkoPalette.OnLime, iconSize = 22.dp)
+            }
+            Text(
+                "Ekko",
+                style = MaterialTheme.typography.titleMedium,
+                color = EkkoPalette.Text,
+                modifier = Modifier.align(Alignment.Center).alpha(barAlpha),
+            )
+            Hairline(Modifier.align(Alignment.BottomCenter).alpha(barAlpha))
+        }
+    }
+}
+
+/** Velg mellom lyder og spillelister. Markøren glir over til det som velges. */
+@Composable
+private fun SegmentedTabs(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    BoxWithConstraints(
+        modifier
+            .fillMaxWidth()
+            .height(42.dp)
+            .clip(CircleShape)
+            .background(EkkoPalette.Surface)
+            .padding(3.dp),
+    ) {
+        val width = maxWidth / options.size
+        val offset by animateDpAsState(width * selected, spring(dampingRatio = 0.78f, stiffness = 520f))
+        Box(Modifier.offset(x = offset).width(width).fillMaxHeight().clip(CircleShape).background(EkkoPalette.Text))
+        Row(Modifier.fillMaxSize()) {
+            options.forEachIndexed { index, label ->
+                val color by animateColorAsState(if (index == selected) EkkoPalette.Ink else EkkoPalette.TextDim)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .pressable({ if (index != selected) onSelect(index) }, pressedScale = 0.97f, haptic = Haptics::select),
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelLarge, color = color)
                 }
             }
         }
     }
 }
 
+/** Lar innholdet gå [amount] ut over kantene på hver side, forbi luften i listen. */
+private fun Modifier.bleed(amount: Dp): Modifier = layout { measurable, constraints ->
+    val extra = amount.roundToPx() * 2
+    val placeable = measurable.measure(constraints.copy(minWidth = constraints.maxWidth + extra, maxWidth = constraints.maxWidth + extra))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+}
+
+/** «Alle», og én knapp per person som sier noe i lydene. */
 @Composable
-private fun TabChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun PersonChips(people: List<String>, selected: String?, onSelect: (String?) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Går helt ut til kanten av skjermen, så knappene ikke kuttes før kanten når man blar.
+        modifier = modifier.bleed(12.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+    ) {
+        Chip("Alle", selected == null) { onSelect(null) }
+        people.forEach { person ->
+            Chip(person, person.equals(selected, ignoreCase = true)) {
+                onSelect(if (person.equals(selected, ignoreCase = true)) null else person)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val background by animateColorAsState(if (selected) EkkoPalette.Lime else EkkoPalette.Surface)
+    val color by animateColorAsState(if (selected) EkkoPalette.OnLime else EkkoPalette.Text)
     Text(
         text,
         style = MaterialTheme.typography.labelLarge,
-        color = if (selected) EkkoPalette.Ink else EkkoPalette.Text,
+        color = color,
+        maxLines = 1,
         modifier = Modifier
             .clip(CircleShape)
-            .background(if (selected) EkkoPalette.Text else EkkoPalette.Surface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .background(background)
+            .pressable(onClick, pressedScale = 0.94f, haptic = Haptics::select)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
     )
+}
+
+@Composable
+private fun NoMatches(onClear: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
+    ) {
+        Icon(Icons.Rounded.SearchOff, contentDescription = null, tint = EkkoPalette.TextDim, modifier = Modifier.size(36.dp))
+        Text("Ingen treff", style = MaterialTheme.typography.titleLarge, color = EkkoPalette.Text)
+        Text("Prøv et annet ord, eller en annen person.", style = MaterialTheme.typography.bodyMedium, color = EkkoPalette.TextDim, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(4.dp))
+        SecondaryButton("Vis alle", onClear, modifier = Modifier.height(44.dp))
+    }
 }
 
 /** «12 lyder · 3 min», med knapper for tilfeldig rekkefølge og avspilling. */
@@ -461,6 +623,7 @@ fun ShuffleButton(on: Boolean, onClick: () -> Unit, size: Dp = 44.dp) {
         background = if (on) EkkoPalette.Lime.copy(alpha = 0.14f) else EkkoPalette.Surface,
         tint = if (on) EkkoPalette.Lime else EkkoPalette.TextDim,
         iconSize = size * 0.5f,
+        haptic = Haptics::select,
     )
 }
 
@@ -490,7 +653,7 @@ private fun NewPlaylistRow(onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(8.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).pressable(onClick, pressedScale = 0.97f).padding(8.dp),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -507,7 +670,7 @@ private fun PlaylistRow(playlist: Playlist, clips: List<Clip>, onClick: () -> Un
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(8.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).pressable(onClick, pressedScale = 0.97f).padding(8.dp),
     ) {
         PlaylistCover(playlist.id, clips, 60.dp)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
@@ -524,9 +687,11 @@ fun MiniPlayer(clip: Clip, player: EkkoPlayer, store: EkkoStore, onOpen: () -> U
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .shadow(24.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black, spotColor = Color.Black)
+            .clip(RoundedCornerShape(20.dp))
             .background(EkkoPalette.SurfaceHigh)
-            .clickable(onClick = onOpen),
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
+            .pressable(onOpen, pressedScale = 0.98f),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
