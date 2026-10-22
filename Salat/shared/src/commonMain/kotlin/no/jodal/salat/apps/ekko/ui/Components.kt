@@ -1,6 +1,5 @@
 package no.jodal.salat.apps.ekko.ui
 
-import no.jodal.salat.Haptics
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -51,6 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.sin
+import no.jodal.salat.Haptics
 import no.jodal.salat.apps.ekko.Clip
 import no.jodal.salat.apps.ekko.formatLength
 

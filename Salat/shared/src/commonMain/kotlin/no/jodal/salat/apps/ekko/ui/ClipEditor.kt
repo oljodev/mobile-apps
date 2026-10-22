@@ -1,7 +1,5 @@
 package no.jodal.salat.apps.ekko.ui
 
-import no.jodal.salat.Haptics
-import kotlin.math.floor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -50,6 +48,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.floor
+import no.jodal.salat.Haptics
 import no.jodal.salat.apps.ekko.EkkoPlayer
 import no.jodal.salat.apps.ekko.formatLength
 import no.jodal.salat.apps.ekko.formatPrecise
