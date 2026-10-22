@@ -3,6 +3,7 @@ package no.jodal.salat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import no.jodal.salat.apps.Brems
 import no.jodal.salat.apps.Ekko
 import no.jodal.salat.apps.Fornyelse
 import no.jodal.salat.apps.Kompis
@@ -49,6 +50,7 @@ val miniApps = listOf(
     Rise,
     Kompis,
     Ekko,
+    Brems,
     Fornyelse,
     Varseltest,
 )
