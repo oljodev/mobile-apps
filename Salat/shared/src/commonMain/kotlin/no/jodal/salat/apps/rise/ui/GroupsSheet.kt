@@ -13,7 +13,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -86,7 +91,12 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
                     GroupRow(
                         group = group,
                         canDelete = groups.size > 1,
+                        canMoveUp = index > 0,
+                        canMoveDown = index < groups.lastIndex,
                         onChange = { changed -> groups = groups.map { if (it.id == group.id) changed else it } },
+                        onMove = { offset ->
+                            groups = groups.toMutableList().apply { add(index + offset, removeAt(index)) }
+                        },
                         onDelete = { groups = groups.filter { it.id != group.id } },
                     )
                 }
@@ -98,7 +108,7 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
                 Text("+  Ny gruppe", style = MaterialTheme.typography.titleMedium)
             }
             Text(
-                "Alarmer i en gruppe du sletter, flyttes til den øverste gruppen.",
+                "Gruppene vises i denne rekkefølgen. Alarmer i en gruppe du sletter, blir liggende uten gruppe.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -109,7 +119,15 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun GroupRow(group: RiseGroup, canDelete: Boolean, onChange: (RiseGroup) -> Unit, onDelete: () -> Unit) {
+private fun GroupRow(
+    group: RiseGroup,
+    canDelete: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onChange: (RiseGroup) -> Unit,
+    onMove: (offset: Int) -> Unit,
+    onDelete: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BasicTextField(
@@ -126,6 +144,14 @@ private fun GroupRow(group: RiseGroup, canDelete: Boolean, onChange: (RiseGroup)
                 }
             },
         )
+        Row {
+            IconButton(onClick = { onMove(-1) }, enabled = canMoveUp, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Flytt opp")
+            }
+            IconButton(onClick = { onMove(1) }, enabled = canMoveDown, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Flytt ned")
+            }
+        }
         if (canDelete) {
             TextButton(onClick = onDelete) { Text("Slett", color = colors.error) }
         }
