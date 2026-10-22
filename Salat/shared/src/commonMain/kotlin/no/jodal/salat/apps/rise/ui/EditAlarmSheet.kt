@@ -153,6 +153,9 @@ fun EditAlarmContent(initial: RiseAlarm, isNew: Boolean, store: RiseStore, bridg
 
             SettingsSection("Gruppe") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChipButton("Ingen", selected = draft.groupId == null) {
+                        draft = draft.copy(groupId = null)
+                    }
                     for (group in store.data.groups) {
                         ChipButton(group.name, selected = draft.groupId == group.id) {
                             draft = draft.copy(groupId = group.id)

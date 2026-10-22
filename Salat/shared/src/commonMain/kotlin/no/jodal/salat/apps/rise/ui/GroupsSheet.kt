@@ -64,11 +64,11 @@ fun GroupsSheet(store: RiseStore, onDismiss: () -> Unit) {
                 close {
                     val cleaned = groups.map { it.copy(name = it.name.trim().ifEmpty { "Uten navn" }) }
                     store.update { data ->
-                        // Alarmer i slettede grupper flyttes til den første gruppen.
+                        // Alarmer i slettede grupper blir liggende uten gruppe.
                         val ids = cleaned.map { it.id }.toSet()
                         data.copy(
                             groups = cleaned,
-                            alarms = data.alarms.map { if (it.groupId in ids) it else it.copy(groupId = cleaned.first().id) },
+                            alarms = data.alarms.map { if (it.groupId == null || it.groupId in ids) it else it.copy(groupId = null) },
                         )
                     }
                 }

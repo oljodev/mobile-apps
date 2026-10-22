@@ -2,9 +2,14 @@ package no.jodal.salat.apps.rise
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 
 class RecurrenceTest {
     // 2026-10-19 er en mandag.
@@ -33,6 +38,19 @@ class RecurrenceTest {
     fun onceRingsOnlyOnItsDate() {
         val a = alarm(Repeat.Once(LocalDate(2026, 10, 21)))
         assertEquals(listOf(LocalDate(2026, 10, 21)), dates(a, at(monday), LocalDate(2026, 12, 31)))
+    }
+
+    @Test
+    fun onceIsHiddenWhenItHasRungAndDeletedTwoHoursLater() {
+        val a = alarm(Repeat.Once(monday))
+        val zone = TimeZone.UTC
+        assertFalse(a.hasRung(at(monday, 6, 29)))
+        assertTrue(a.hasRung(at(monday, 6, 30)))
+        // Den blir liggende litt, så slumring ikke stoppes.
+        assertFalse(a.isDone(at(monday, 8, 29), zone))
+        assertTrue(a.isDone(at(monday, 8, 30), zone))
+        // Alarmer som gjentas, blir aldri borte av seg selv.
+        assertFalse(alarm(Repeat.Weekly(setOf(1))).isDone(at(monday.plus(DatePeriod(days = 30))), zone))
     }
 
     @Test

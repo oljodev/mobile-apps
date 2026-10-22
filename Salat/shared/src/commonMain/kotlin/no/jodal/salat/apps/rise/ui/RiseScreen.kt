@@ -72,6 +72,7 @@ import no.jodal.salat.apps.rise.RiseStore
 import no.jodal.salat.apps.rise.formatCountdown
 import no.jodal.salat.apps.rise.formatDate
 import no.jodal.salat.apps.rise.formatTime
+import no.jodal.salat.apps.rise.hasRung
 import no.jodal.salat.apps.rise.nextOccurrence
 import no.jodal.salat.apps.rise.summary
 import no.jodal.salat.resources.Res
@@ -108,21 +109,36 @@ fun RiseScreen(bridge: NativeBridge, onBack: () -> Unit) {
                     item(key = "error") { ErrorCard(error) }
                 }
 
-                for (group in store.data.groups) {
-                    val alarms = store.data.alarms.filter { it.groupId == group.id }.sortedBy { it.hour * 60 + it.minute }
-                    item(key = "group-${group.id}") {
+                // Engangsalarmer som har ringt, vises ikke. De slettes litt senere.
+                val visible = store.data.alarms.filterNot { it.hasRung(now) }
+                val onEdit = { alarm: RiseAlarm ->
+                    editing = alarm
+                    editingIsNew = false
+                }
+                val onToggle = { alarm: RiseAlarm, enabled: Boolean ->
+                    store.update { d -> d.copy(alarms = d.alarms.map { if (it.id == alarm.id) it.copy(enabled = enabled) else it }) }
+                }
+
+                // Alarmer uten gruppe, som oftest engangsalarmer, ligger øverst i den rekkefølgen de ringer.
+                val ungrouped = visible
+                    .filter { alarm -> alarm.groupId == null || store.data.groups.none { it.id == alarm.groupId } }
+                    .sortedWith(compareBy({ (it.repeat as? Repeat.Once)?.date }, { it.hour * 60 + it.minute }))
+                if (ungrouped.isNotEmpty()) {
+                    item(key = "ungrouped") {
                         GroupSection(
-                            group = group,
-                            alarms = alarms,
+                            title = if (ungrouped.all { it.repeat is Repeat.Once }) "Én gang" else "Uten gruppe",
+                            alarms = ungrouped,
                             now = now,
-                            onEdit = {
-                                editing = it
-                                editingIsNew = false
-                            },
-                            onToggle = { alarm, enabled ->
-                                store.update { d -> d.copy(alarms = d.alarms.map { if (it.id == alarm.id) it.copy(enabled = enabled) else it }) }
-                            },
+                            onEdit = onEdit,
+                            onToggle = onToggle,
                         )
+                    }
+                }
+
+                for (group in store.data.groups) {
+                    val alarms = visible.filter { it.groupId == group.id }.sortedBy { it.hour * 60 + it.minute }
+                    item(key = "group-${group.id}") {
+                        GroupSection(title = group.name, alarms = alarms, now = now, onEdit = onEdit, onToggle = onToggle)
                     }
                 }
             }
@@ -132,7 +148,7 @@ fun RiseScreen(bridge: NativeBridge, onBack: () -> Unit) {
                 onBack = onBack,
                 onGroups = { showGroups = true },
                 onAdd = {
-                    editing = newAlarm(store, now)
+                    editing = newAlarm(now)
                     editingIsNew = true
                 },
             )
@@ -284,7 +300,7 @@ private fun SunGlow(modifier: Modifier) {
 
 @Composable
 private fun GroupSection(
-    group: RiseGroup,
+    title: String,
     alarms: List<RiseAlarm>,
     now: LocalDateTime,
     onEdit: (RiseAlarm) -> Unit,
@@ -293,7 +309,7 @@ private fun GroupSection(
     val colors = MaterialTheme.colorScheme
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)) {
-            Text(group.name.uppercase(), style = MaterialTheme.typography.labelLarge, letterSpacing = 1.5.sp, color = colors.onSurfaceVariant)
+            Text(title.uppercase(), style = MaterialTheme.typography.labelLarge, letterSpacing = 1.5.sp, color = colors.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
             if (alarms.isNotEmpty()) {
                 val active = alarms.count { it.enabled }
@@ -373,13 +389,12 @@ private fun ErrorCard(message: String) {
     )
 }
 
-/** En ny alarm med fornuftige standardverdier: kl. 07:00 i morgen. */
-private fun newAlarm(store: RiseStore, now: LocalDateTime): RiseAlarm {
-    val group = store.data.groups.first()
+/** En ny alarm med fornuftige standardverdier: én gang, kl. 07:00 i morgen, uten gruppe. */
+private fun newAlarm(now: LocalDateTime): RiseAlarm {
     return RiseAlarm(
         id = randomId(),
         title = "",
-        groupId = group.id,
+        groupId = null,
         kind = AlarmKind.Alarm,
         hour = 7,
         minute = 0,

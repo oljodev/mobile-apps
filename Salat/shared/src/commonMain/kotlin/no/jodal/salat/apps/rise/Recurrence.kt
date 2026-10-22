@@ -1,13 +1,17 @@
 package no.jodal.salat.apps.rise
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 
 /** Om alarmen skal ringe på [date], før man tar hensyn til start, slutt og hoppede dager. */
 fun Repeat.matches(date: LocalDate, startDate: LocalDate): Boolean = when (this) {
@@ -25,6 +29,19 @@ fun Repeat.matches(date: LocalDate, startDate: LocalDate): Boolean = when (this)
             (date.day - 1) / 7 + 1 == week
         }
 }
+
+/** Om en alarm som bare går én gang, har ringt. Den vises da ikke lenger i Rise. */
+fun RiseAlarm.hasRung(now: LocalDateTime): Boolean = repeat is Repeat.Once && LocalDateTime(repeat.date, time) <= now
+
+/**
+ * Hvor lenge en engangsalarm blir liggende etter at den har ringt, før den slettes. Slettes den med
+ * en gang, stopper iOS slumringen, siden alarmen ikke finnes lenger.
+ */
+val KeepAfterRinging: Duration = 2.hours
+
+/** Om en engangsalarm har ringt for så lenge siden at den kan slettes. */
+fun RiseAlarm.isDone(now: LocalDateTime, timeZone: TimeZone): Boolean =
+    repeat is Repeat.Once && LocalDateTime(repeat.date, time).toInstant(timeZone) + KeepAfterRinging <= now.toInstant(timeZone)
 
 /** Alle gangene alarmen ringer etter [after], til og med [until]. */
 fun RiseAlarm.occurrences(after: LocalDateTime, until: LocalDate): List<LocalDateTime> {

@@ -37,7 +37,8 @@ enum class AlarmKind {
 data class RiseAlarm(
     val id: String,
     val title: String,
-    val groupId: String,
+    /** Gruppen alarmen ligger i, eller `null` hvis den ikke er i noen gruppe. */
+    val groupId: String? = null,
     val kind: AlarmKind,
     val hour: Int,
     val minute: Int,

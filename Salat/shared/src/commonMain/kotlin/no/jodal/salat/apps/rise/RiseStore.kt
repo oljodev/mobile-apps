@@ -20,17 +20,26 @@ class RiseStore private constructor(private val bridge: NativeBridge) {
         private set
 
     fun update(transform: (RiseData) -> RiseData) {
-        val today = now().date
+        val now = now()
+        val zone = TimeZone.currentSystemDefault()
         data = transform(data).let { updated ->
-            // Hoppede dager som har vært, trengs ikke lenger.
-            updated.copy(alarms = updated.alarms.map { a -> a.copy(skippedDates = a.skippedDates.filter { it >= today }.toSet()) })
+            updated.copy(
+                alarms = updated.alarms
+                    // Engangsalarmer som har ringt, slettes.
+                    .filterNot { it.isDone(now, zone) }
+                    // Hoppede dager som har vært, trengs ikke lenger.
+                    .map { a -> a.copy(skippedDates = a.skippedDates.filter { it >= now.date }.toSet()) },
+            )
         }
         bridge.saveText(StorageKey, json.encodeToString(RiseData.serializer(), data))
         reschedule()
     }
 
-    /** Kalles når appen åpnes, for å fylle på alarmer. */
-    fun refresh() = reschedule()
+    /** Kalles når appen åpnes, for å fylle på alarmer og rydde bort engangsalarmer som har ringt. */
+    fun refresh() {
+        val now = now()
+        if (data.alarms.any { it.isDone(now, TimeZone.currentSystemDefault()) }) update { it } else reschedule()
+    }
 
     fun now(): LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
