@@ -14,7 +14,12 @@ data class BremsData(
     val sessions: List<Session> = emptyList(),
     /** Alle pausene, den siste til slutt. */
     val pauses: List<Pause> = emptyList(),
+    /** Det siste som har skjedd, så man kan se at automasjonene virker. Nyeste sist. */
+    val log: List<LogEntry> = emptyList(),
 )
+
+@Serializable
+data class LogEntry(val atMillis: Long, val text: String)
 
 @Serializable
 data class BremsSettings(

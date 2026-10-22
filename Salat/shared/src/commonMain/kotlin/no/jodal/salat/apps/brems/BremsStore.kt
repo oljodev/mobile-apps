@@ -28,14 +28,31 @@ class BremsStore private constructor(private val bridge: NativeBridge) {
         val (next, decision) = BremsRules.opened(BremsRules.trim(data, now), app, now)
         update { next }
         if (next.active != before) scheduleNotices()
+        val name = appName(app.orEmpty()).replaceFirstChar { it.uppercase() }
+        log(
+            when (decision) {
+                is Decision.Wait -> "$name åpnet: pause, ${(decision.pause.untilMillis - now + 999) / 1000} s igjen"
+                Decision.Go -> "$name åpnet: fri"
+            },
+        )
         return decision is Decision.Wait
     }
 
     fun closed() {
         val before = data.active
-        update { BremsRules.closed(it, nowMillis()) }
-        if (data.active != before) scheduleNotices()
+        val now = nowMillis()
+        update { BremsRules.closed(it, now) }
+        val ended = before?.takeIf { data.active != it }
+        if (ended != null) {
+            scheduleNotices()
+            log("${appName(ended.app).replaceFirstChar { it.uppercase() }} lukket etter ${formatDuration(now - ended.startMillis)}")
+        } else {
+            log("Lukket")
+        }
     }
+
+    /** Skriver [text] i loggen. */
+    fun log(text: String) = update { it.copy(log = (it.log + LogEntry(nowMillis(), text)).takeLast(LogSize)) }
 
     fun currentPause(): Pause? = BremsRules.currentPause(data, nowMillis())
 
@@ -71,6 +88,7 @@ class BremsStore private constructor(private val bridge: NativeBridge) {
 
     companion object {
         private const val StorageKey = "brems.data"
+        private const val LogSize = 40
         private val json = Json { ignoreUnknownKeys = true }
         private var instance: BremsStore? = null
 
@@ -87,6 +105,9 @@ fun bremsOpened(bridge: NativeBridge, app: String?): Boolean = BremsStore.get(br
 
 /** Kalles fra Snarveier når en app lukkes. */
 fun bremsClosed(bridge: NativeBridge) = BremsStore.get(bridge).closed()
+
+/** Skriver noe fra Swift i loggen, f.eks. at Brems ikke fikk komme fram. */
+fun bremsLog(bridge: NativeBridge, text: String) = BremsStore.get(bridge).log(text)
 
 /** Lenken som åpner [app], for appene vi kjenner. */
 fun appUrl(app: String): String? = AppSchemes[app.trim().lowercase()]

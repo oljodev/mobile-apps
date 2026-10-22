@@ -1,5 +1,6 @@
 import AppIntents
 import Shared
+import UIKit
 
 // Handlingene automasjonene i Snarveier kjører, så Brems vet når apper åpnes og lukkes.
 
@@ -19,9 +20,20 @@ struct BremsOpenedIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        if BremsStoreKt.bremsOpened(bridge: IosNativeBridge.shared, app: app) {
-            WidgetActions.open("salat://brems/pause")
+        let bridge = IosNativeBridge.shared
+        guard BremsStoreKt.bremsOpened(bridge: bridge, app: app) else { return .result() }
+        WidgetActions.open("salat://brems/pause")
+        if UIApplication.shared.applicationState == .active {
+            BremsStoreKt.bremsLog(bridge: bridge, text: "Brems var alt framme")
+            return .result()
+        }
+        do {
             try await continueInForeground(alwaysConfirm: false)
+            BremsStoreKt.bremsLog(bridge: bridge, text: "Brems kom fram")
+        } catch {
+            // Slipper iOS ikke Brems fram, kommer i det minste et varsel.
+            BremsStoreKt.bremsLog(bridge: bridge, text: "Fikk ikke åpne Brems: \(error.localizedDescription)")
+            Notifications.shared.sendBremsNow(title: "Pause først", body: "Trykk her for å ta pausen i Brems.")
         }
         return .result()
     }
