@@ -41,6 +41,25 @@ fun BremsData.usageOn(date: LocalDate, now: Long, zone: TimeZone): DayUsage {
     )
 }
 
+/** Når på [date] appene var åpne, som deler av døgnet fra 0 til 1. */
+fun BremsData.segmentsOn(date: LocalDate, now: Long, zone: TimeZone): List<ClosedFloatingPointRange<Float>> {
+    val from = date.atStartOfDayIn(zone).toEpochMilliseconds()
+    val to = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).toEpochMilliseconds()
+    val all = sessions + listOfNotNull(active?.let { Session(it.app, it.startMillis, minOf(now, it.startMillis + BremsRules.MaxSessionMillis)) })
+    val length = (to - from).toFloat()
+    return all
+        .filter { it.endMillis > from && it.startMillis < to }
+        .map { ((maxOf(it.startMillis, from) - from) / length)..((minOf(it.endMillis, to) - from) / length) }
+}
+
+/** Hvor langt dagen har kommet, fra 0 ved midnatt til 1. */
+fun dayFraction(now: Long, zone: TimeZone): Float {
+    val date = today(now, zone)
+    val from = date.atStartOfDayIn(zone).toEpochMilliseconds()
+    val to = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).toEpochMilliseconds()
+    return (now - from).toFloat() / (to - from)
+}
+
 fun BremsData.usageToday(now: Long, zone: TimeZone): DayUsage = usageOn(today(now, zone), now, zone)
 
 fun today(now: Long, zone: TimeZone): LocalDate = Instant.fromEpochMilliseconds(now).toLocalDateTime(zone).date

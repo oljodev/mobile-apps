@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -62,67 +63,62 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 24.dp),
     ) {
         Header("Innstillinger", onBack)
 
         BremsCard(padding = 0.dp) {
             Box(Modifier.padding(horizontal = 20.dp)) {
-                ToggleRow("Brems er på", "Skru av for å slippe pauser og varsler en stund", settings.enabled) { on ->
-                    store.updateSettings { it.copy(enabled = on) }
-                }
+                ToggleRow("Brems er på", settings.enabled) { on -> store.updateSettings { it.copy(enabled = on) } }
             }
         }
+        Footnote("Skru av for å slippe pauser og varsler en stund.", Modifier.padding(top = 10.dp))
 
-        SectionLabel("Pauser og grenser", Modifier.padding(top = 12.dp))
+        Group("Pauser og grenser")
         BremsCard(padding = 0.dp) {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Stepper("Pause når du åpner", "Hver gang du åpner en app", settings.openPauseSeconds, OpenPauseSteps, ::seconds) { v ->
+                Stepper("Pause når du åpner", settings.openPauseSeconds, OpenPauseSteps, ::seconds) { v ->
                     store.updateSettings { it.copy(openPauseSeconds = v) }
                 }
                 Divider()
-                Stepper("Varsel etter", "Et varsel mens du er i appen", settings.reminderMinutes, ReminderSteps, ::minutes) { v ->
+                Stepper("Første varsel", settings.reminderMinutes, ReminderSteps, ::minutes) { v ->
                     store.updateSettings { it.copy(reminderMinutes = v) }
                 }
                 Divider()
-                Stepper("Grense per økt", "Så lenge du kan være i en app i strekk", settings.limitMinutes, LimitSteps, ::minutes) { v ->
+                Stepper("Grense per økt", settings.limitMinutes, LimitSteps, ::minutes) { v ->
                     store.updateSettings { it.copy(limitMinutes = v) }
                 }
                 Divider()
-                Stepper("Pause etter grensen", "Tiden du er borte, teller med", settings.limitPauseSeconds, LimitPauseSteps, ::seconds) { v ->
+                Stepper("Pause etter grensen", settings.limitPauseSeconds, LimitPauseSteps, ::seconds) { v ->
                     store.updateSettings { it.copy(limitPauseSeconds = v) }
                 }
                 Divider()
-                Stepper("Mas etter grensen", "Nytt varsel så ofte du er over", settings.nagMinutes, NagSteps, { if (it == 0) "Av" else "$it min" }) { v ->
+                Stepper("Nye varsler hvert", settings.nagMinutes, NagSteps, ::minutes) { v ->
                     store.updateSettings { it.copy(nagMinutes = v) }
                 }
             }
         }
+        Footnote(
+            "En økt er tiden fra du åpner en app til du lukker den. Går den over grensen, venter en lengre pause neste gang. " +
+                "Tiden du er borte fra appene, teller med.",
+            Modifier.padding(top = 10.dp),
+        )
 
-        SectionLabel("Pauseskjermen", Modifier.padding(top = 12.dp))
+        Group("Pauseskjermen")
         BremsCard(padding = 0.dp) {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                ToggleRow("Pust", "En sirkel som vokser og krymper i takt med pusten", settings.breathing) { on ->
-                    store.updateSettings { it.copy(breathing = on) }
-                }
+                ToggleRow("Pust", settings.breathing) { on -> store.updateSettings { it.copy(breathing = on) } }
                 Divider()
-                ToggleRow("Dagens bruk", "Hvor lenge og hvor ofte i dag", settings.showUsage) { on ->
-                    store.updateSettings { it.copy(showUsage = on) }
-                }
+                ToggleRow("Dagens bruk", settings.showUsage) { on -> store.updateSettings { it.copy(showUsage = on) } }
                 Divider()
-                ToggleRow("Spør hvorfor", "Velg en grunn mens du venter", settings.askWhy) { on ->
-                    store.updateSettings { it.copy(askWhy = on) }
-                }
+                ToggleRow("Spør hvorfor", settings.askWhy) { on -> store.updateSettings { it.copy(askWhy = on) } }
                 Divider()
-                ToggleRow("Påminnelse", "En kort tekst, tilfeldig valgt", settings.showQuote) { on ->
-                    store.updateSettings { it.copy(showQuote = on) }
-                }
+                ToggleRow("Påminnelse", settings.showQuote) { on -> store.updateSettings { it.copy(showQuote = on) } }
             }
         }
 
         if (settings.askWhy) {
-            SectionLabel("Grunner", Modifier.padding(top = 12.dp))
+            Group("Grunner")
             TextList(
                 items = settings.reasons,
                 placeholder = "Ny grunn",
@@ -132,7 +128,7 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
         }
 
         if (settings.showQuote) {
-            SectionLabel("Påminnelser", Modifier.padding(top = 12.dp))
+            Group("Påminnelser")
             TextList(
                 items = settings.quotes,
                 placeholder = "Skriv din egen",
@@ -140,26 +136,32 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
                 onReset = if (settings.quotes != DefaultQuotes) ({ store.updateSettings { it.copy(quotes = DefaultQuotes) } }) else null,
             )
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(40.dp))
     }
+}
+
+@Composable
+private fun Group(title: String) {
+    Spacer(Modifier.height(36.dp))
+    SectionHeader(title)
+    Spacer(Modifier.height(12.dp))
 }
 
 /** Tilbakeknapp og tittel øverst på en underside. */
 @Composable
 fun Header(title: String, onBack: () -> Unit) {
-    Column(Modifier.padding(top = 4.dp, bottom = 8.dp)) {
-        IconCircle(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onBack)
-        Spacer(Modifier.height(20.dp))
-        Text(title, style = MaterialTheme.typography.headlineMedium, color = BremsPalette.Text)
+    Column(Modifier.padding(top = 4.dp, bottom = 24.dp)) {
+        Box(Modifier.offset(x = (-10).dp)) { PlainIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onBack, tint = BremsPalette.Text) }
+        Spacer(Modifier.height(16.dp))
+        Text(title, style = MaterialTheme.typography.displaySmall, color = BremsPalette.Text)
     }
 }
 
 @Composable
-private fun Stepper(title: String, subtitle: String, value: Int, steps: List<Int>, format: (Int) -> String, onChange: (Int) -> Unit) {
+private fun Stepper(title: String, value: Int, steps: List<Int>, format: (Int) -> String, onChange: (Int) -> Unit) {
     val index = steps.indexOfFirst { it >= value }.let { if (it < 0) steps.lastIndex else it }
     StepperRow(
         title = title,
-        subtitle = subtitle,
         value = format(value),
         onMinus = { onChange(steps[(index - 1).coerceAtLeast(0)]) },
         onPlus = { onChange(steps[(if (steps[index] == value) index + 1 else index).coerceAtMost(steps.lastIndex)]) },
@@ -237,7 +239,7 @@ private fun TextList(items: List<String>, placeholder: String, onChange: (List<S
             "Tilbakestill",
             style = MaterialTheme.typography.labelLarge,
             color = BremsPalette.Ice,
-            modifier = Modifier.padding(start = 4.dp).pressable(onReset),
+            modifier = Modifier.padding(start = 12.dp, top = 6.dp).pressable(onReset).padding(8.dp),
         )
     }
 }

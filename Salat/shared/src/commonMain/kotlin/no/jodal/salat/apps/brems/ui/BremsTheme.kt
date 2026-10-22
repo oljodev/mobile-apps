@@ -26,13 +26,13 @@ import org.jetbrains.compose.resources.Font
  * mye luft. Rolig og fokusert, som en klokke.
  */
 object BremsPalette {
-    val Ink = Color(0xFF07090C)
-    val Surface = Color(0xFF10151B)
-    val SurfaceHigh = Color(0xFF18202A)
-    val Line = Color(0xFF212A35)
-    val Text = Color(0xFFEDF3F8)
-    val TextDim = Color(0xFF8391A2)
-    val TextFaint = Color(0xFF4F5B69)
+    val Ink = Color(0xFF050608)
+    val Surface = Color(0xFF0E1115)
+    val SurfaceHigh = Color(0xFF181C22)
+    val Line = Color(0xFF1B2027)
+    val Text = Color(0xFFF2F5F8)
+    val TextDim = Color(0xFF7D8794)
+    val TextFaint = Color(0xFF454D58)
     val Ice = Color(0xFF8FDBFF)
     val IceDeep = Color(0xFF2C5F9E)
     val OnIce = Color(0xFF05111B)
