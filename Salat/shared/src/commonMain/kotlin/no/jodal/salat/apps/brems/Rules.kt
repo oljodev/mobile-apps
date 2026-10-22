@@ -105,17 +105,17 @@ object BremsRules {
         val name = appName(app)
         val notices = mutableListOf<SessionNotice>()
         if (settings.reminderMinutes in 1 until settings.limitMinutes) {
-            notices += SessionNotice(settings.reminderMinutes, "${settings.reminderMinutes} minutter i $name", "Er det fortsatt det du vil bruke tiden på?")
+            notices += SessionNotice(settings.reminderMinutes, "${formatMinutes(settings.reminderMinutes)} i $name", "Er det fortsatt det du vil bruke tiden på?")
         }
         notices += SessionNotice(
             settings.limitMinutes,
-            "${settings.limitMinutes} minutter. Tid for en pause.",
+            "${formatMinutes(settings.limitMinutes).replaceFirstChar { it.uppercase() }}. Tid for en pause.",
             "Lukk $name og legg fra deg telefonen i ${formatSeconds(settings.limitPauseSeconds)}.",
         )
         if (settings.nagMinutes > 0) {
             for (i in 1..NagCount) {
                 val minutes = settings.limitMinutes + i * settings.nagMinutes
-                notices += SessionNotice(minutes, "$minutes minutter i $name", "Du er over grensen din. Lukk appen.")
+                notices += SessionNotice(minutes, "${formatMinutes(minutes)} i $name", "Du er over grensen din. Lukk appen.")
             }
         }
         return notices
@@ -153,10 +153,13 @@ object BremsRules {
 @Serializable
 data class SessionNotice(val minutes: Int, val title: String, val body: String)
 
-/** «45 sekunder», «1 minutt», «1 min 30 sek». */
+/** «1 sekund», «45 sekunder», «1 minutt», «1 min 30 sek». */
 fun formatSeconds(seconds: Int): String = when {
+    seconds == 1 -> "1 sekund"
     seconds < 60 -> "$seconds sekunder"
-    seconds == 60 -> "1 minutt"
-    seconds % 60 == 0 -> "${seconds / 60} minutter"
+    seconds % 60 == 0 -> formatMinutes(seconds / 60)
     else -> "${seconds / 60} min ${seconds % 60} sek"
 }
+
+/** «1 minutt», «10 minutter». */
+fun formatMinutes(minutes: Int): String = if (minutes == 1) "1 minutt" else "$minutes minutter"
