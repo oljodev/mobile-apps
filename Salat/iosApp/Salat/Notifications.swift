@@ -45,6 +45,30 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
         center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger))
     }
 
+    /// Så mange varsler Brems kan ha planlagt samtidig.
+    private let bremsSlots = 20
+
+    /// Erstatter varslene fra Brems med `json`, en liste av `ScheduledNotice` fra Kotlin.
+    func scheduleBrems(_ json: String) {
+        struct Notice: Decodable {
+            let title: String
+            let body: String
+            let atMillis: Int64
+        }
+        center.removePendingNotificationRequests(withIdentifiers: (0..<bremsSlots).map { "brems.\($0)" })
+        let notices = (try? JSONDecoder().decode([Notice].self, from: Data(json.utf8))) ?? []
+        for (index, notice) in notices.prefix(bremsSlots).enumerated() {
+            let seconds = Double(notice.atMillis) / 1000 - Date().timeIntervalSince1970
+            guard seconds > 0 else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = notice.title
+            content.body = notice.body
+            content.sound = .default
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+            center.add(UNNotificationRequest(identifier: "brems.\(index)", content: content, trigger: trigger))
+        }
+    }
+
     /// Vis varsler også når appen er åpen.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,

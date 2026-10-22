@@ -13,6 +13,7 @@ Forsiden har to deler: **Appene dine** og **Verktøy**.
 | Rise | Appene dine | Alarmer og varsler i grupper, med gjentakelser og slumring. Se [planen](docs/rise.md). |
 | Kompis | Appene dine | Snakk med Gemini Live med stemmen, også med skjermen av. Samtalene lagres og kan fortsettes. Bruker `gemini-3.8-live`, og husker samtalen som tekst for å holde prisen nede. |
 | Ekko | Appene dine | Lyder og sitater fra YouTube Shorts, Snapchat Spotlight og videoer på telefonen. Klipp ut biten du vil ha, gi den navn og lag spillelister. Spiller med skjermen av, og kan styres fra låseskjermen. |
+| Brems | Appene dine | Mindre scrolling. En kort pause hver gang du åpner en app du vil bruke mindre, varsel etter 5 minutter, og en pause på 60 sekunder etter 10 minutter. Alt kan stilles inn. Krever to automasjoner i Snarveier, se oppsettet i Brems. |
 | Fornyelse | Verktøy | Viser hvor lenge det er til appen må fornyes i SideStore. Salat varsler også dagen før. |
 | Varseltest | Verktøy | Sender testvarsler og testalarmer, så du kan sjekke at varsler, alarmer og lyd virker. |
 

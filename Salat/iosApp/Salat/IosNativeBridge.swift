@@ -138,6 +138,15 @@ final class IosNativeBridge: NSObject, NativeBridge {
         WidgetActions.save(name, Data(json.utf8))
     }
 
+    func openUrl(url: String) {
+        guard let url = URL(string: url) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    func bremsNotify(noticesJson: String) {
+        Notifications.shared.scheduleBrems(noticesJson)
+    }
+
     func haptic(kind: String) {
         switch kind {
         case "selection": UISelectionFeedbackGenerator().selectionChanged()
