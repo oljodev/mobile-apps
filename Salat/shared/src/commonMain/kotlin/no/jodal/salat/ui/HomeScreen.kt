@@ -30,10 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,15 +53,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import no.jodal.salat.MiniApp
 import no.jodal.salat.MiniAppIcon
-import no.jodal.salat.NativeBridge
-import no.jodal.salat.apps.Fornyelse
 import no.jodal.salat.miniApps
 import no.jodal.salat.resources.Res
 import no.jodal.salat.resources.salat_logo
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun HomeScreen(bridge: NativeBridge, darkTheme: Boolean, onOpen: (MiniApp) -> Unit) {
+fun HomeScreen(darkTheme: Boolean, onOpen: (MiniApp) -> Unit) {
     val apps = miniApps.filter { it.section == MiniApp.Section.Apps }
     val tools = miniApps.filter { it.section == MiniApp.Section.Tools }
 
@@ -78,7 +74,7 @@ fun HomeScreen(bridge: NativeBridge, darkTheme: Boolean, onOpen: (MiniApp) -> Un
         ),
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
     ) {
-        fullWidth { Header(bridge, darkTheme, onOpenRenewal = { onOpen(Fornyelse) }) }
+        fullWidth { Header(darkTheme) }
 
         fullWidth { SectionTitle("Appene dine") }
         items(apps) { app -> AppTile(app, darkTheme, onClick = { onOpen(app) }) }
@@ -95,7 +91,7 @@ private fun LazyGridScope.fullWidth(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Header(bridge: NativeBridge, darkTheme: Boolean, onOpenRenewal: () -> Unit) {
+private fun Header(darkTheme: Boolean) {
     val colors = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
@@ -122,32 +118,6 @@ private fun Header(bridge: NativeBridge, darkTheme: Boolean, onOpenRenewal: () -
                 Text(greeting(), style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
                 Text("Salat", style = MaterialTheme.typography.displaySmall, color = colors.onBackground)
             }
-        }
-        RenewalChip(bridge, onClick = onOpenRenewal)
-    }
-}
-
-@Composable
-private fun RenewalChip(bridge: NativeBridge, onClick: () -> Unit) {
-    val timeLeft = remember { bridge.signingTimeLeft() } ?: return
-    val urgent = timeLeft.inWholeDays < 2
-    val text = when {
-        timeLeft.isNegative() -> "Må fornyes i SideStore nå!"
-        else -> "Fornyes om ${formatTimeLeft(timeLeft)}"
-    }
-    Surface(
-        shape = CircleShape,
-        color = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-        contentColor = if (urgent) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.clip(CircleShape).clickable(onClick = onClick),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            Icon(Icons.Rounded.HourglassTop, contentDescription = null, modifier = Modifier.size(16.dp))
-            Text(text, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

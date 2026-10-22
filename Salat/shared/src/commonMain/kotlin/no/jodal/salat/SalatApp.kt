@@ -67,7 +67,7 @@ fun SalatApp(bridge: NativeBridge, darkTheme: Boolean = isSystemInDarkTheme()) {
             },
         ) { app ->
             if (app == null) {
-                HomeScreen(bridge, darkTheme, onOpen = { openApp = it })
+                HomeScreen(darkTheme, onOpen = { openApp = it })
             } else {
                 MiniAppScreen(app, bridge, darkTheme, onBack = { openApp = null })
             }
