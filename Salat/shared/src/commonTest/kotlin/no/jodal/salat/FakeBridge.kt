@@ -82,4 +82,16 @@ internal object FakeBridge : NativeBridge {
     }
 
     override fun haptic(kind: String) = Unit
+
+    val openedUrls = mutableListOf<String>()
+
+    override fun openUrl(url: String) {
+        openedUrls += url
+    }
+
+    var bremsNotices: String? = null
+
+    override fun bremsNotify(noticesJson: String) {
+        bremsNotices = noticesJson
+    }
 }

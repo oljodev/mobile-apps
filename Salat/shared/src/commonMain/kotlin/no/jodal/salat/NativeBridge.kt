@@ -111,6 +111,15 @@ interface NativeBridge {
      */
     fun saveWidgetData(name: String, json: String)
 
+    /** Åpner [url] i en annen app, f.eks. `shortcuts://` eller `tiktok://`. */
+    fun openUrl(url: String)
+
+    /**
+     * Erstatter varslene fra Brems med [noticesJson], en liste av `ScheduledNotice`. En tom liste
+     * fjerner dem.
+     */
+    fun bremsNotify(noticesJson: String)
+
     /** En liten vibrasjon: `light`, `selection`, `rigid`, `success` eller `warning`. */
     fun haptic(kind: String)
 }

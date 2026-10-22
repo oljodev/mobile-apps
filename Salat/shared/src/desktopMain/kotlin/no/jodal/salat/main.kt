@@ -110,4 +110,8 @@ private object PreviewBridge : NativeBridge {
     override fun saveWidgetData(name: String, json: String) = Unit
 
     override fun haptic(kind: String) = Unit
+
+    override fun openUrl(url: String) = println("Forhåndsvisning: åpner $url")
+
+    override fun bremsNotify(noticesJson: String) = println("Forhåndsvisning: Brems-varsler $noticesJson")
 }
