@@ -53,6 +53,7 @@ import no.jodal.salat.Haptics
 import no.jodal.salat.apps.ekko.EkkoPlayer
 import no.jodal.salat.apps.ekko.formatLength
 import no.jodal.salat.apps.ekko.formatPrecise
+import no.jodal.salat.ui.pressable
 
 /** Den korteste lyden man kan klippe, i sekunder. */
 private const val MinLength = 0.3

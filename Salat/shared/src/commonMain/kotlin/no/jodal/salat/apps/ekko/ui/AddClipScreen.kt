@@ -60,6 +60,7 @@ import no.jodal.salat.Haptics
 import no.jodal.salat.NativeBridge
 import no.jodal.salat.apps.ekko.EkkoImporter
 import no.jodal.salat.apps.ekko.EkkoPlayer
+import no.jodal.salat.ui.pressable
 
 /** Legg til en ny lyd: velg hvor den kommer fra, vent mens den hentes, og klipp den. */
 @Composable

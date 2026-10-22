@@ -53,6 +53,7 @@ import kotlin.math.sin
 import no.jodal.salat.Haptics
 import no.jodal.salat.apps.ekko.Clip
 import no.jodal.salat.apps.ekko.formatLength
+import no.jodal.salat.ui.pressable
 
 /** [levels] skalert til [count] streker: den høyeste verdien i hver bit. */
 fun resample(levels: List<Float>, count: Int): List<Float> {

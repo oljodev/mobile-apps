@@ -1,4 +1,4 @@
-package no.jodal.salat.apps.ekko.ui
+package no.jodal.salat.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring

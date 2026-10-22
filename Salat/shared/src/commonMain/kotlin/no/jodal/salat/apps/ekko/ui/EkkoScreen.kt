@@ -88,6 +88,7 @@ import no.jodal.salat.apps.ekko.people
 import no.jodal.salat.resources.Res
 import no.jodal.salat.resources.ekko_logo
 import no.jodal.salat.ui.BackButton
+import no.jodal.salat.ui.pressable
 import org.jetbrains.compose.resources.painterResource
 
 private sealed interface EkkoDestination {
