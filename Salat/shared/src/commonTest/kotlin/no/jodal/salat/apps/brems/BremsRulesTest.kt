@@ -1,6 +1,7 @@
 package no.jodal.salat.apps.brems
 
 import kotlin.random.Random
+import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -11,7 +12,7 @@ class BremsRulesTest {
     private val min = 60 * sec
     private val start = 1_000_000_000L
 
-    private fun open(data: BremsData, app: String, at: Long) = BremsRules.opened(data, app, at, Random(1))
+    private fun open(data: BremsData, app: String, at: Long) = BremsRules.opened(data, app, at, TimeZone.UTC, Random(1))
 
     @Test
     fun firstOpenGivesTheShortPause() {

@@ -16,6 +16,7 @@ data class BremsData(
     val pauses: List<Pause> = emptyList(),
     /** Det siste som har skjedd, så man kan se at automasjonene virker. Nyeste sist. */
     val log: List<LogEntry> = emptyList(),
+    val goals: List<Goal> = emptyList(),
 )
 
 @Serializable
@@ -36,8 +37,8 @@ data class BremsSettings(
     val nagMinutes: Int = 2,
     val breathing: Boolean = true,
     val showUsage: Boolean = true,
-    val askWhy: Boolean = false,
-    val showQuote: Boolean = false,
+    val askWhy: Boolean = true,
+    val showQuote: Boolean = true,
     val quotes: List<String> = DefaultQuotes,
     val reasons: List<String> = DefaultReasons,
 )
@@ -73,6 +74,9 @@ enum class PauseKind {
 
     /** Den lange pausen etter at forrige økt gikk over grensen. */
     Limit,
+
+    /** Den lange pausen når dagens mål for appen er nådd. */
+    Goal,
 }
 
 @Serializable

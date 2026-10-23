@@ -1,6 +1,7 @@
 package no.jodal.salat.apps.brems
 
 import kotlin.random.Random
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 
 /** Det som skal skje når en app åpnes. */
@@ -32,7 +33,13 @@ object BremsRules {
     /** Så lenge historikken tas vare på. */
     const val KeepMillis = 120L * 24 * 60 * 60_000L
 
-    fun opened(data: BremsData, app: String?, now: Long, random: Random = Random): Pair<BremsData, Decision> {
+    fun opened(
+        data: BremsData,
+        app: String?,
+        now: Long,
+        zone: TimeZone = TimeZone.currentSystemDefault(),
+        random: Random = Random,
+    ): Pair<BremsData, Decision> {
         val name = app?.trim().orEmpty()
         var d = endActive(data, now).let { it.copy(opens = it.opens + OpenEvent(name, now)) }
         if (!d.settings.enabled) return startSession(d, name, now) to Decision.Go
@@ -53,7 +60,7 @@ object BremsRules {
             return startSession(d.copy(pass = null), name, now) to Decision.Go
         }
 
-        val (kind, seconds) = pauseFor(d, now)
+        val (kind, seconds) = pauseFor(d, name, now, zone)
         if (seconds <= 0) return startSession(d, name, now) to Decision.Go
         val quote = d.settings.quotes.takeIf { d.settings.showQuote && it.isNotEmpty() }?.random(random)
         val pause = Pause(
@@ -73,8 +80,11 @@ object BremsRules {
         return endActive(data, now)
     }
 
-    /** Hvor lang pause neste åpning skal gi. Gikk forrige økt over grensen, teller tiden siden man lukket appen. */
-    fun pauseFor(data: BremsData, now: Long): Pair<PauseKind, Int> {
+    /**
+     * Hvor lang pause neste åpning av [app] skal gi. Gikk forrige økt over grensen, teller tiden siden man
+     * lukket appen. Er dagens mål for appen nådd, blir det den lange pausen hver gang.
+     */
+    fun pauseFor(data: BremsData, app: String, now: Long, zone: TimeZone): Pair<PauseKind, Int> {
         val settings = data.settings
         val last = data.sessions.lastOrNull()
         val limitLeft = if (last != null && last.millis >= settings.limitMinutes * 60_000L) {
@@ -82,7 +92,12 @@ object BremsRules {
         } else {
             0
         }
-        return if (limitLeft > settings.openPauseSeconds) PauseKind.Limit to limitLeft else PauseKind.Open to settings.openPauseSeconds
+        val goal = if (data.reachedGoal(app, now, zone) != null) settings.limitPauseSeconds else 0
+        return when {
+            goal >= limitLeft && goal > settings.openPauseSeconds -> PauseKind.Goal to goal
+            limitLeft > settings.openPauseSeconds -> PauseKind.Limit to limitLeft
+            else -> PauseKind.Open to settings.openPauseSeconds
+        }
     }
 
     /** Pausen som pågår eller er ferdig, men ikke besvart. */

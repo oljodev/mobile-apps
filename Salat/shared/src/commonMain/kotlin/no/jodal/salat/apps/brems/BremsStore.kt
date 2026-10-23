@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -75,12 +76,37 @@ class BremsStore private constructor(private val bridge: NativeBridge) {
         val notices = if (active == null || !data.settings.enabled) {
             emptyList()
         } else {
-            BremsRules.notifications(data.settings, active.app).map {
+            val now = nowMillis()
+            val zone = TimeZone.currentSystemDefault()
+            val session = BremsRules.notifications(data.settings, active.app).map {
                 ScheduledNotice(it.title, it.body, active.startMillis + it.minutes * 60_000L)
             }
+            // Et varsel når dagens mål for appen nås, hvis det skjer i denne økta.
+            val goals = data.goals.filter { it.appliesTo(active.app) }.mapNotNull { goal ->
+                val left = goal.minutesPerDay * 60_000L - data.goalMillis(goal, today(now, zone), now, zone)
+                if (left <= 0) return@mapNotNull null
+                ScheduledNotice(
+                    if (goal.app.isEmpty()) "Dagens mål er nådd" else "Målet for ${goal.app} er nådd",
+                    "Du har brukt ${formatMinutes(goal.minutesPerDay)} i dag. Lukk appen for å holde rekka.",
+                    now + left,
+                )
+            }
+            (session + goals).sortedBy { it.atMillis }
         }
         bridge.bremsNotify(json.encodeToString(ListSerializer(ScheduledNotice.serializer()), notices))
     }
+
+    /** Legger til [goal], eller erstatter målet med samme id. */
+    fun saveGoal(goal: Goal) = update { data ->
+        val exists = data.goals.any { it.id == goal.id }
+        data.copy(goals = if (exists) data.goals.map { if (it.id == goal.id) goal else it } else data.goals + goal)
+    }
+
+    fun deleteGoal(id: String) = update { data -> data.copy(goals = data.goals.filter { it.id != id }) }
+
+    /** Appene Brems har hørt om, til å velge mellom når man lager et mål. */
+    fun knownApps(): List<String> =
+        (data.opens.map { it.app } + data.sessions.map { it.app }).filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.sorted()
 
     private fun load(): BremsData = bridge.loadText(StorageKey)
         ?.let { runCatching { json.decodeFromString(BremsData.serializer(), it) }.getOrNull() }
