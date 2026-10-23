@@ -1,17 +1,19 @@
 package no.jodal.salat.apps.brems.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -27,7 +29,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,22 +43,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.sin
 import kotlinx.datetime.TimeZone
 import no.jodal.salat.Haptics
 import no.jodal.salat.apps.brems.BremsStore
@@ -77,8 +73,9 @@ private enum class PauseStep { Waiting, Stopped, GoBack }
 private const val BreathMillis = 4_000L
 
 /**
- * Pausen før en app åpnes. Den kan ikke hoppes over, men man kan gå ut av Brems: pausen teller
- * videre, og åpner man appen igjen, kommer man tilbake hit.
+ * Pausen før en app åpnes: en lysende kule som puster, med nedtellingen inni, og ingenting annet.
+ * Den kan ikke hoppes over, men man kan gå ut av Brems: pausen teller videre, og åpner man appen
+ * igjen, kommer man tilbake hit. Når tiden er ute, kan man velge å la være eller fortsette.
  */
 @Composable
 fun PauseScreen(store: BremsStore, pause: Pause, onLeave: () -> Unit) {
@@ -99,20 +96,39 @@ fun PauseScreen(store: BremsStore, pause: Pause, onLeave: () -> Unit) {
     var step by remember { mutableStateOf(PauseStep.Waiting) }
 
     val phase = ((now - pause.startMillis) % (BreathMillis * 2)).toFloat() / (BreathMillis * 2)
-    val breathing = store.data.settings.breathing && !done && step == PauseStep.Waiting
+    val breathing = store.data.settings.breathing && !done
     // 0 når man har pustet ut, 1 når man har pustet inn.
-    val breath = if (breathing) ((1 - cos(phase * 2 * PI)) / 2).toFloat() else 0.45f
+    val breath = if (breathing) ((1 - cos(phase * 2 * PI)) / 2).toFloat() else 0.5f
+    // Når tiden er ute, trekker kula seg sammen og gjør plass til valget.
+    val settle by animateFloatAsState(if (done) 1f else 0f, tween(900))
 
-    DuskBackground(breath) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                AppPill(appName(pause.app).replaceFirstChar { it.uppercase() })
-                Spacer(Modifier.weight(1f))
-                GlassIconButton(Icons.Rounded.Close, "Gå ut av pausen", onLeave)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Night.Top)
+            .drawBehind {
+                // En svak glød nedenfra, rund, så overgangen ikke blir stripete.
+                drawRect(
+                    Brush.radialGradient(
+                        listOf(Night.Bottom, Night.Top),
+                        center = Offset(size.width / 2, size.height * 1.1f),
+                        radius = size.height * 0.75f,
+                    ),
+                )
+            },
+    ) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(44.dp).clip(CircleShape).pressable(onLeave, pressedScale = 0.85f),
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Gå ut av pausen", tint = Night.Faint, modifier = Modifier.size(22.dp))
+                }
             }
             AnimatedContent(
                 targetState = step,
-                transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(250)) },
+                transitionSpec = { fadeIn(tween(600)) togetherWith fadeOut(tween(300)) },
                 modifier = Modifier.weight(1f),
             ) { current ->
                 when (current) {
@@ -120,10 +136,11 @@ fun PauseScreen(store: BremsStore, pause: Pause, onLeave: () -> Unit) {
                         store = store,
                         pause = pause,
                         now = now,
-                        remainingMillis = remainingMillis,
+                        seconds = ((remainingMillis + 999) / 1000).toInt(),
+                        done = done,
                         breath = breath,
-                        inhaling = breathing && phase < 0.5f,
-                        breathing = breathing,
+                        settle = settle,
+                        cue = if (breathing) (if (phase < 0.5f) "Pust inn" else "Pust ut") else null,
                         onContinue = {
                             val known = appUrl(pause.app) != null
                             store.continueToApp()
@@ -146,242 +163,188 @@ fun PauseScreen(store: BremsStore, pause: Pause, onLeave: () -> Unit) {
     }
 }
 
+/** Fargene på pauseskjermen: natt, med ett lys. */
+private object Night {
+    val Top = Color(0xFF05050C)
+    val Bottom = Color(0xFF110E30)
+    val Core = Color(0xFF0E0C2A)
+    val Middle = Color(0xFF1E1860)
+    val Edge = Color(0xFF6F63FF)
+    val Glow = Color(0xFF5A4CF0)
+    val Text = Color(0xFFFFFFFF)
+    val Dim = Color(0x99FFFFFF)
+    val Faint = Color(0x59FFFFFF)
+}
+
 @Composable
 private fun Waiting(
     store: BremsStore,
     pause: Pause,
     now: Long,
-    remainingMillis: Long,
+    seconds: Int,
+    done: Boolean,
     breath: Float,
-    inhaling: Boolean,
-    breathing: Boolean,
+    settle: Float,
+    cue: String?,
     onContinue: () -> Unit,
     onStop: () -> Unit,
 ) {
     val settings = store.data.settings
-    val done = remainingMillis == 0L
     val name = appName(pause.app)
-    val limit = pause.kind == PauseKind.Limit
-
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(28.dp))
-        Text(
-            if (limit) "OVER GRENSEN" else "PAUSE",
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.4.sp),
-            color = if (limit) Dusk.Ember else Dusk.Lilac,
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            when {
-                done -> "Vil du fortsatt inn?"
-                limit -> "Pust litt før $name."
-                else -> "Et øyeblikk før $name."
-            },
-            style = MaterialTheme.typography.headlineSmall,
-            color = Dusk.Text,
-            textAlign = TextAlign.Center,
-        )
-        val details = buildList {
-            if (limit) add("Forrige økt varte over ${formatMinutes(settings.limitMinutes)}.")
-            if (settings.showUsage) {
-                val today = store.data.usageToday(now, TimeZone.currentSystemDefault())
-                add("${today.opens}. gang i dag  ·  ${formatDuration(today.millis)}")
-            }
-        }
-        if (details.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
-            Text(details.joinToString("\n"), style = MaterialTheme.typography.bodyMedium, color = Dusk.TextDim, textAlign = TextAlign.Center)
-        }
-
-        Spacer(Modifier.weight(0.6f))
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(292.dp)) {
-            Bloom(
-                breath = breath,
-                progress = remainingMillis.toFloat() / (pause.untilMillis - pause.startMillis).coerceAtLeast(1),
-            )
-            Crossfade(targetState = done, animationSpec = tween(500)) { finished ->
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
-                    if (finished) {
-                        Icon(Icons.Rounded.Check, contentDescription = null, tint = Dusk.Text, modifier = Modifier.size(64.dp))
-                    } else {
-                        Text(
-                            "${(remainingMillis + 999) / 1000}",
-                            style = MaterialTheme.typography.displayLarge,
-                            color = Dusk.Text,
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Crossfade(targetState = if (breathing) (if (inhaling) "Pust inn" else "Pust ut") else "", animationSpec = tween(700)) { cue ->
+        Spacer(Modifier.weight(1f))
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(300.dp)) {
+            Orb(breath = breath, scale = 1f - 0.28f * settle)
             Text(
-                cue,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 22.sp),
-                color = Dusk.TextDim,
-                modifier = Modifier.height(30.dp),
+                "$seconds",
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 96.sp),
+                color = Night.Text,
+                modifier = Modifier.alpha(1f - settle),
             )
         }
-
+        Spacer(Modifier.height(24.dp))
+        Crossfade(targetState = cue, animationSpec = tween(800)) { text ->
+            Text(
+                text?.uppercase() ?: "",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 3.sp),
+                color = Night.Dim,
+                modifier = Modifier.height(16.dp),
+            )
+        }
         val quote = pause.quote
-        Spacer(Modifier.weight(0.5f))
-        if (quote != null && !done) {
-            Text(
-                quote,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Dusk.TextDim,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 300.dp),
-            )
+        if (quote != null && settings.showQuote && !done) {
+            Spacer(Modifier.height(28.dp))
+            Text(quote, style = MaterialTheme.typography.bodyLarge, color = Night.Dim, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 300.dp))
         }
         Spacer(Modifier.weight(1f))
 
+        AnimatedVisibility(
+            visible = done,
+            enter = fadeIn(tween(700, delayMillis = 300)) + slideInVertically(tween(700, delayMillis = 300)) { it / 8 },
+        ) {
+            Choice(store, pause, now, onContinue, onStop)
+        }
+        if (!done) {
+            Text(
+                if (pause.kind == PauseKind.Limit) "Over ${formatMinutes(settings.limitMinutes)} i $name. Ta en pause." else "Før $name",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Night.Faint,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 28.dp),
+            )
+        }
+    }
+}
+
+/** Valget når tiden er ute. «Jeg er ferdig» er det store valget, å fortsette er bare tekst. */
+@Composable
+private fun Choice(store: BremsStore, pause: Pause, now: Long, onContinue: () -> Unit, onStop: () -> Unit) {
+    val settings = store.data.settings
+    val name = appName(pause.app)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text("Vil du fortsatt inn på $name?", style = MaterialTheme.typography.headlineSmall, color = Night.Text, textAlign = TextAlign.Center)
+        if (settings.showUsage) {
+            val today = store.data.usageToday(now, TimeZone.currentSystemDefault())
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${today.opens}. gang i dag, ${formatDuration(today.millis)} så langt.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Night.Dim,
+                textAlign = TextAlign.Center,
+            )
+        }
         if (settings.askWhy && settings.reasons.isNotEmpty()) {
             val why = store.data.pauses.lastOrNull()?.why
-            Text("Hvorfor åpner du $name?", style = MaterialTheme.typography.bodySmall, color = Dusk.TextFaint)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(24.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 settings.reasons.forEach { reason ->
-                    GlassChip(reason, selected = why == reason) { store.answerWhy(if (why == reason) null else reason) }
-                }
-            }
-            Spacer(Modifier.height(24.dp))
-        }
-
-        AnimatedContent(
-            targetState = done,
-            transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(200)) },
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-        ) { finished ->
-            if (finished) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    WhiteButton("Jeg er ferdig", onStop)
-                    Text(
-                        "Fortsett til $name",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Dusk.TextDim,
-                        modifier = Modifier.padding(top = 6.dp).clip(CircleShape).pressable(onContinue).padding(horizontal = 20.dp, vertical = 14.dp),
-                    )
-                }
-            } else {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        "Du kan gå ut av Brems. Pausen teller videre.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Dusk.TextFaint,
-                        textAlign = TextAlign.Center,
-                    )
+                    ReasonChip(reason, selected = why == reason) { store.answerWhy(if (why == reason) null else reason) }
                 }
             }
         }
+        Spacer(Modifier.height(32.dp))
+        WhiteButton("Jeg er ferdig", onStop)
+        Text(
+            "Fortsett til $name",
+            style = MaterialTheme.typography.titleMedium,
+            color = Night.Dim,
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).clip(CircleShape).pressable(onContinue).padding(horizontal = 20.dp, vertical = 14.dp),
+        )
     }
 }
 
 /**
- * Pusteblomsten: seks gjennomsiktige blader som folder seg ut når man puster inn og samler seg
- * når man puster ut, med en tynn ring rundt som tømmes mens pausen går.
+ * Kula: mørk inni og lysende i kanten, med en myk glød rundt som vokser når man puster inn.
+ * [breath] går fra 0 (pustet ut) til 1 (pustet inn), og [scale] krymper den når pausen er over.
  */
 @Composable
-private fun Bloom(breath: Float, progress: Float) {
+private fun Orb(breath: Float, scale: Float) {
     Canvas(Modifier.fillMaxSize()) {
-        val side = size.minDimension
-        val ring = side / 2 - 2.dp.toPx()
-        val petal = side * (0.17f + 0.07f * breath)
-        val spread = side * (0.06f + 0.15f * breath)
-        val turn = (breath * 50f - 25f) * (PI / 180).toFloat()
-        for (i in 0 until 6) {
-            val angle = turn + i * (PI / 3).toFloat()
-            val c = Offset(center.x + cos(angle) * spread, center.y + sin(angle) * spread)
-            drawCircle(
-                Brush.radialGradient(
-                    0f to Dusk.Lilac.copy(alpha = 0.30f),
-                    1f to Dusk.Violet.copy(alpha = 0.16f),
-                    center = c,
-                    radius = petal,
-                ),
-                radius = petal,
-                center = c,
-            )
-        }
-        val track = 2.dp.toPx()
-        drawCircle(Color.White.copy(alpha = 0.10f), ring, style = Stroke(track))
-        if (progress > 0f) {
-            drawArc(
-                color = Color.White.copy(alpha = 0.9f),
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = Offset(center.x - ring, center.y - ring),
-                size = Size(ring * 2, ring * 2),
-                style = Stroke(track, cap = StrokeCap.Round),
-            )
-        }
-    }
-}
-
-/** Skumringen bak pausen: dyp indigo øverst, en fiolett glød bak blomsten og en varm glød nederst. */
-@Composable
-private fun DuskBackground(breath: Float, content: @Composable BoxScope.() -> Unit) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .drawBehind {
-                drawRect(Brush.verticalGradient(listOf(Dusk.Top, Dusk.Middle, Dusk.Bottom)))
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Dusk.Violet.copy(alpha = 0.20f + 0.14f * breath), Color.Transparent),
-                        center = Offset(size.width / 2, size.height * 0.46f),
-                        radius = size.width * (0.75f + 0.1f * breath),
-                    ),
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Dusk.Ember.copy(alpha = 0.22f), Color.Transparent),
-                        center = Offset(size.width / 2, size.height * 1.08f),
-                        radius = size.width * 0.9f,
-                    ),
-                )
-            },
-        content = content,
-    )
-}
-
-@Composable
-private fun AppPill(name: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clip(CircleShape).background(Dusk.Glass).border(1.dp, Dusk.GlassLine, CircleShape).padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(Dusk.Ember))
-        Text(name, style = MaterialTheme.typography.labelLarge, color = Dusk.Text, modifier = Modifier.padding(start = 8.dp))
+        val max = size.minDimension / 2
+        val radius = max * (0.56f + 0.2f * breath) * scale
+        // Gløden rundt.
+        drawCircle(
+            Brush.radialGradient(
+                0f to Night.Glow.copy(alpha = 0.34f + 0.16f * breath),
+                0.55f to Night.Glow.copy(alpha = 0.10f),
+                1f to Color.Transparent,
+                center = center,
+                radius = radius * 1.75f,
+            ),
+            radius = radius * 1.75f,
+        )
+        // Selve kula, mørkest i midten så tallet synes godt, og lysere ut mot kanten.
+        drawCircle(
+            Brush.radialGradient(
+                0f to Night.Core,
+                0.62f to Night.Middle,
+                1f to Night.Edge.copy(alpha = 0.55f),
+                center = center,
+                radius = radius,
+            ),
+            radius = radius,
+        )
+        // En myk, lysende kant som glir ut i gløden i stedet for en skarp strek.
+        drawCircle(
+            Brush.radialGradient(
+                0f to Color.Transparent,
+                0.80f to Color.Transparent,
+                0.87f to Night.Edge.copy(alpha = 0.75f),
+                0.90f to Color(0xFFB4ACFF).copy(alpha = 0.55f),
+                1f to Color.Transparent,
+                center = center,
+                radius = radius * 1.12f,
+            ),
+            radius = radius * 1.12f,
+        )
+        // Et svakt lys oppe til venstre, så den ser rund ut.
+        drawCircle(
+            Brush.radialGradient(
+                listOf(Color.White.copy(alpha = 0.07f), Color.Transparent),
+                center = Offset(center.x - radius * 0.35f, center.y - radius * 0.45f),
+                radius = radius * 0.7f,
+            ),
+            radius = radius * 0.7f,
+            center = Offset(center.x - radius * 0.35f, center.y - radius * 0.45f),
+        )
     }
 }
 
 @Composable
-private fun GlassIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(38.dp).clip(CircleShape).background(Dusk.Glass).border(1.dp, Dusk.GlassLine, CircleShape).pressable(onClick, pressedScale = 0.88f),
-    ) {
-        Icon(icon, contentDescription = description, tint = Dusk.Text, modifier = Modifier.size(20.dp))
-    }
-}
-
-@Composable
-private fun GlassChip(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun ReasonChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(CircleShape)
-            .background(if (selected) Dusk.Text else Dusk.Glass)
-            .border(1.dp, if (selected) Dusk.Text else Dusk.GlassLine, CircleShape)
+            .background(if (selected) Night.Text else Color.White.copy(alpha = 0.06f))
+            .border(1.dp, if (selected) Night.Text else Color.White.copy(alpha = 0.12f), CircleShape)
             .pressable(onClick, pressedScale = 0.94f, haptic = Haptics::select)
             .padding(horizontal = 16.dp, vertical = 9.dp),
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge, color = if (selected) Dusk.Top else Dusk.Text)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = if (selected) Night.Top else Night.Text)
     }
 }
 
@@ -389,9 +352,9 @@ private fun GlassChip(text: String, selected: Boolean, onClick: () -> Unit) {
 private fun WhiteButton(text: String, onClick: () -> Unit) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(18.dp)).background(Dusk.Text).pressable(onClick, pressedScale = 0.97f),
+        modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(28.dp)).background(Night.Text).pressable(onClick, pressedScale = 0.97f),
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium, color = Dusk.Top)
+        Text(text, style = MaterialTheme.typography.titleMedium, color = Night.Top)
     }
 }
 
@@ -399,16 +362,18 @@ private fun WhiteButton(text: String, onClick: () -> Unit) {
 private fun Ending(title: String, body: String, onDone: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
         Spacer(Modifier.weight(1f))
-        Text(title, style = MaterialTheme.typography.displaySmall, color = Dusk.Text, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(14.dp))
-        Text(body, style = MaterialTheme.typography.bodyLarge, color = Dusk.TextDim, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
-        Spacer(Modifier.weight(1.3f))
-        Box(Modifier.padding(bottom = 16.dp)) { WhiteButton("Ferdig", onDone) }
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) { Orb(breath = 0.3f, scale = 0.7f) }
+        Spacer(Modifier.height(32.dp))
+        Text(title, style = MaterialTheme.typography.headlineMedium, color = Night.Text, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(10.dp))
+        Text(body, style = MaterialTheme.typography.bodyLarge, color = Night.Dim, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 300.dp))
+        Spacer(Modifier.weight(1f))
+        Box(Modifier.padding(bottom = 24.dp)) { WhiteButton("Ferdig", onDone) }
     }
 }
 
 private fun stoppedText(store: BremsStore): String {
     val stopped = store.data.usageToday(store.nowMillis(), TimeZone.currentSystemDefault()).stopped
     val times = if (stopped <= 1) "Første gang i dag." else "$stopped. gang i dag."
-    return "Du lot være. $times\nLegg fra deg telefonen og gjør noe annet."
+    return "Du lot være. $times Legg fra deg telefonen og gjør noe annet."
 }

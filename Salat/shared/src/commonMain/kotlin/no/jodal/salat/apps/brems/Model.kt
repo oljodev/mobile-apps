@@ -36,8 +36,8 @@ data class BremsSettings(
     val nagMinutes: Int = 2,
     val breathing: Boolean = true,
     val showUsage: Boolean = true,
-    val askWhy: Boolean = true,
-    val showQuote: Boolean = true,
+    val askWhy: Boolean = false,
+    val showQuote: Boolean = false,
     val quotes: List<String> = DefaultQuotes,
     val reasons: List<String> = DefaultReasons,
 )
