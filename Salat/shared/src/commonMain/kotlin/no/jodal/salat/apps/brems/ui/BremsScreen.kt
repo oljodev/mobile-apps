@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DoNotTouch
 import androidx.compose.material.icons.rounded.Flag
@@ -82,6 +83,7 @@ private sealed interface BremsDestination {
     data object Settings : BremsDestination
     data object Guide : BremsDestination
     data object Pause : BremsDestination
+    data object Stats : BremsDestination
 
     /** Lag et nytt mål ([id] er `null`) eller endre et. */
     data class GoalEdit(val id: String?) : BremsDestination
@@ -131,6 +133,7 @@ fun BremsScreen(bridge: NativeBridge, onBack: () -> Unit) {
                     BremsDestination.Home -> Home(store, onBack = onBack, onOpen = { destination = it })
                     BremsDestination.Settings -> SettingsScreen(store, onBack = { destination = BremsDestination.Home })
                     BremsDestination.Guide -> GuideScreen(bridge, store, onBack = { destination = BremsDestination.Home })
+                    BremsDestination.Stats -> StatsScreen(store, onBack = { destination = BremsDestination.Home })
                     is BremsDestination.GoalEdit -> GoalScreen(store, current.id, onBack = { destination = BremsDestination.Home })
                     BremsDestination.Pause -> {
                         val pause = remember { store.currentPause() ?: store.data.pauses.lastOrNull() }
@@ -182,7 +185,7 @@ private fun Home(store: BremsStore, onBack: () -> Unit, onOpen: (BremsDestinatio
             Spacer(Modifier.height(16.dp))
         }
 
-        TodayCard(today, before, store, now, zone)
+        TodayCard(today, before, store, now, zone) { onOpen(BremsDestination.Stats) }
 
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -227,8 +230,17 @@ private fun Home(store: BremsStore, onBack: () -> Unit, onOpen: (BremsDestinatio
         }
 
         Spacer(Modifier.height(28.dp))
-        GroupLabel("Oppsett")
+        GroupLabel("Mer")
         Card {
+            ListRow(
+                "Statistikk",
+                icon = Icons.Rounded.BarChart,
+                iconTint = TileColors.Indigo,
+                subtitle = "Uke og måned, pauser, tider og grunner",
+                chevron = true,
+                onClick = { onOpen(BremsDestination.Stats) },
+            )
+            RowDivider()
             ListRow(
                 "Snarveier og logg",
                 icon = Icons.Rounded.Bolt,
@@ -267,9 +279,13 @@ private fun PauseBanner(app: String, seconds: Long, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TodayCard(today: DayUsage, before: DayUsage, store: BremsStore, now: Long, zone: TimeZone) {
-    Card(padding = 20.dp) {
-        Text("Tid i dag", style = MaterialTheme.typography.titleSmall, color = palette.textDim)
+private fun TodayCard(today: DayUsage, before: DayUsage, store: BremsStore, now: Long, zone: TimeZone, onClick: () -> Unit) {
+    Card(onClick = onClick, padding = 20.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Tid i dag", style = MaterialTheme.typography.titleSmall, color = palette.textDim, modifier = Modifier.weight(1f))
+            Text("Statistikk", style = MaterialTheme.typography.titleSmall, color = palette.accent)
+            Icon(Icons.AutoMirrored.Rounded.ArrowForwardIos, contentDescription = null, tint = palette.accent, modifier = Modifier.padding(start = 4.dp).size(11.dp))
+        }
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             val minutes = today.millis / 60_000
