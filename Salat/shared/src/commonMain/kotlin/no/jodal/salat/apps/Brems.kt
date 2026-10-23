@@ -11,7 +11,7 @@ val Brems = MiniApp(
     title = "Brems",
     description = "Pauser og grenser for appene du scroller i",
     icon = MiniAppIcon.Logo(Res.drawable.brems_logo, fullBleed = true),
-    color = Color(0xFF8FDBFF),
+    color = Color(0xFF5B4FF0),
     customTopBar = true,
     content = { BremsScreen(it.bridge, onBack = it.onBack) },
 )
