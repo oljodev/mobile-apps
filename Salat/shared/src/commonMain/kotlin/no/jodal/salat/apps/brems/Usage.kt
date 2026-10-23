@@ -1,11 +1,13 @@
 package no.jodal.salat.apps.brems
 
 import kotlin.time.Instant
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.toLocalDateTime
 
 /** Bruken én dag: hvor lenge, hvor ofte, og hvor mange ganger man lot være. */
@@ -52,6 +54,21 @@ fun BremsData.segmentsOn(date: LocalDate, now: Long, zone: TimeZone): List<Close
         .map { ((maxOf(it.startMillis, from) - from) / length)..((minOf(it.endMillis, to) - from) / length) }
 }
 
+/** Minutter i appene i hver av døgnets 24 timer på [date]. */
+fun BremsData.hourlyMinutes(date: LocalDate, now: Long, zone: TimeZone): List<Float> {
+    val from = date.atStartOfDayIn(zone).toEpochMilliseconds()
+    val to = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).toEpochMilliseconds()
+    val hour = (to - from) / 24
+    val all = sessions + listOfNotNull(active?.let { Session(it.app, it.startMillis, minOf(now, it.startMillis + BremsRules.MaxSessionMillis)) })
+    return List(24) { h ->
+        val start = from + h * hour
+        val end = start + hour
+        all.sumOf { (minOf(it.endMillis, end) - maxOf(it.startMillis, start)).coerceAtLeast(0) } / 60_000f
+    }
+}
+
+fun yesterday(now: Long, zone: TimeZone): LocalDate = today(now, zone).minus(DatePeriod(days = 1))
+
 /** Hvor langt dagen har kommet, fra 0 ved midnatt til 1. */
 fun dayFraction(now: Long, zone: TimeZone): Float {
     val date = today(now, zone)
@@ -69,3 +86,9 @@ fun formatDuration(millis: Long): String {
     val minutes = millis / 60_000
     return if (minutes < 60) "$minutes min" else "${minutes / 60} t ${minutes % 60} min"
 }
+
+private val Weekdays = listOf("mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag")
+private val Months = listOf("januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember")
+
+/** «torsdag 23. oktober». */
+fun formatDay(date: LocalDate): String = "${Weekdays[date.dayOfWeek.isoDayNumber - 1]} ${date.day}. ${Months[date.month.ordinal]}"

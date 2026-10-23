@@ -1,7 +1,5 @@
 package no.jodal.salat.apps.brems.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,23 +7,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.FormatQuote
+import androidx.compose.material.icons.rounded.HourglassBottom
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.QuestionMark
+import androidx.compose.material.icons.rounded.RemoveCircle
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.SelfImprovement
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -63,62 +71,58 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 16.dp),
     ) {
-        Header("Innstillinger", onBack)
+        NavBar("Brems", onBack)
+        Box(Modifier.padding(horizontal = 4.dp)) { LargeTitle("Innstillinger") }
 
-        BremsCard(padding = 0.dp) {
-            Box(Modifier.padding(horizontal = 20.dp)) {
-                ToggleRow("Brems er på", settings.enabled) { on -> store.updateSettings { it.copy(enabled = on) } }
-            }
+        Card {
+            ListRow("Brems er på", Icons.Rounded.PowerSettingsNew, TileColors.Teal, trailing = {
+                Switch(settings.enabled) { on -> store.updateSettings { it.copy(enabled = on) } }
+            })
         }
-        Footnote("Skru av for å slippe pauser og varsler en stund.", Modifier.padding(top = 10.dp))
+        Footnote("Skru av for å slippe pauser og varsler en stund.")
 
-        Group("Pauser og grenser")
-        BremsCard(padding = 0.dp) {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Stepper("Pause når du åpner", settings.openPauseSeconds, OpenPauseSteps, ::seconds) { v ->
-                    store.updateSettings { it.copy(openPauseSeconds = v) }
-                }
-                Divider()
-                Stepper("Første varsel", settings.reminderMinutes, ReminderSteps, ::minutes) { v ->
-                    store.updateSettings { it.copy(reminderMinutes = v) }
-                }
-                Divider()
-                Stepper("Grense per økt", settings.limitMinutes, LimitSteps, ::minutes) { v ->
-                    store.updateSettings { it.copy(limitMinutes = v) }
-                }
-                Divider()
-                Stepper("Pause etter grensen", settings.limitPauseSeconds, LimitPauseSteps, ::seconds) { v ->
-                    store.updateSettings { it.copy(limitPauseSeconds = v) }
-                }
-                Divider()
-                Stepper("Nye varsler hvert", settings.nagMinutes, NagSteps, ::minutes) { v ->
-                    store.updateSettings { it.copy(nagMinutes = v) }
-                }
+        Section("Pauser og grenser")
+        Card {
+            StepRow("Åpningspause", Icons.Rounded.Timer, TileColors.Indigo, settings.openPauseSeconds, OpenPauseSteps, ::seconds) { v ->
+                store.updateSettings { it.copy(openPauseSeconds = v) }
+            }
+            RowDivider()
+            StepRow("Første varsel", Icons.Rounded.NotificationsActive, TileColors.Orange, settings.reminderMinutes, ReminderSteps, ::minutes) { v ->
+                store.updateSettings { it.copy(reminderMinutes = v) }
+            }
+            RowDivider()
+            StepRow("Grense per økt", Icons.Rounded.HourglassBottom, TileColors.Pink, settings.limitMinutes, LimitSteps, ::minutes) { v ->
+                store.updateSettings { it.copy(limitMinutes = v) }
+            }
+            RowDivider()
+            StepRow("Grensepause", Icons.Rounded.SelfImprovement, TileColors.Teal, settings.limitPauseSeconds, LimitPauseSteps, ::seconds) { v ->
+                store.updateSettings { it.copy(limitPauseSeconds = v) }
+            }
+            RowDivider()
+            StepRow("Varsle igjen hvert", Icons.Rounded.Repeat, TileColors.Blue, settings.nagMinutes, NagSteps, ::minutes) { v ->
+                store.updateSettings { it.copy(nagMinutes = v) }
             }
         }
         Footnote(
             "En økt er tiden fra du åpner en app til du lukker den. Går den over grensen, venter en lengre pause neste gang. " +
                 "Tiden du er borte fra appene, teller med.",
-            Modifier.padding(top = 10.dp),
         )
 
-        Group("Pauseskjermen")
-        BremsCard(padding = 0.dp) {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                ToggleRow("Pust", settings.breathing) { on -> store.updateSettings { it.copy(breathing = on) } }
-                Divider()
-                ToggleRow("Dagens bruk", settings.showUsage) { on -> store.updateSettings { it.copy(showUsage = on) } }
-                Divider()
-                ToggleRow("Spør hvorfor", settings.askWhy) { on -> store.updateSettings { it.copy(askWhy = on) } }
-                Divider()
-                ToggleRow("Påminnelse", settings.showQuote) { on -> store.updateSettings { it.copy(showQuote = on) } }
-            }
+        Section("Pauseskjermen")
+        Card {
+            ToggleRow("Pust", Icons.Rounded.Air, TileColors.Blue, settings.breathing) { on -> store.updateSettings { it.copy(breathing = on) } }
+            RowDivider()
+            ToggleRow("Dagens bruk", Icons.Rounded.BarChart, TileColors.Indigo, settings.showUsage) { on -> store.updateSettings { it.copy(showUsage = on) } }
+            RowDivider()
+            ToggleRow("Spør hvorfor", Icons.Rounded.QuestionMark, TileColors.Orange, settings.askWhy) { on -> store.updateSettings { it.copy(askWhy = on) } }
+            RowDivider()
+            ToggleRow("Påminnelse", Icons.Rounded.FormatQuote, TileColors.Pink, settings.showQuote) { on -> store.updateSettings { it.copy(showQuote = on) } }
         }
 
         if (settings.askWhy) {
-            Group("Grunner")
+            Section("Grunner")
             TextList(
                 items = settings.reasons,
                 placeholder = "Ny grunn",
@@ -128,7 +132,7 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
         }
 
         if (settings.showQuote) {
-            Group("Påminnelser")
+            Section("Påminnelser")
             TextList(
                 items = settings.quotes,
                 placeholder = "Skriv din egen",
@@ -141,33 +145,36 @@ fun SettingsScreen(store: BremsStore, onBack: () -> Unit) {
 }
 
 @Composable
-private fun Group(title: String) {
-    Spacer(Modifier.height(36.dp))
-    SectionHeader(title)
-    Spacer(Modifier.height(12.dp))
-}
-
-/** Tilbakeknapp og tittel øverst på en underside. */
-@Composable
-fun Header(title: String, onBack: () -> Unit) {
-    Column(Modifier.padding(top = 4.dp, bottom = 24.dp)) {
-        Box(Modifier.offset(x = (-10).dp)) { PlainIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Tilbake", onBack, tint = BremsPalette.Text) }
-        Spacer(Modifier.height(16.dp))
-        Text(title, style = MaterialTheme.typography.displaySmall, color = BremsPalette.Text)
-    }
+private fun Section(title: String) {
+    Spacer(Modifier.height(28.dp))
+    GroupLabel(title)
 }
 
 @Composable
-private fun Stepper(title: String, value: Int, steps: List<Int>, format: (Int) -> String, onChange: (Int) -> Unit) {
+private fun ToggleRow(title: String, icon: ImageVector, tint: Color, checked: Boolean, onChange: (Boolean) -> Unit) {
+    ListRow(title, icon, tint, trailing = { Switch(checked, onChange) })
+}
+
+@Composable
+private fun StepRow(
+    title: String,
+    icon: ImageVector,
+    tint: Color,
+    value: Int,
+    steps: List<Int>,
+    format: (Int) -> String,
+    onChange: (Int) -> Unit,
+) {
     val index = steps.indexOfFirst { it >= value }.let { if (it < 0) steps.lastIndex else it }
-    StepperRow(
-        title = title,
-        value = format(value),
-        onMinus = { onChange(steps[(index - 1).coerceAtLeast(0)]) },
-        onPlus = { onChange(steps[(if (steps[index] == value) index + 1 else index).coerceAtMost(steps.lastIndex)]) },
-        canMinus = value > steps.first(),
-        canPlus = value < steps.last(),
-    )
+    ListRow(title, icon, tint, trailing = {
+        Stepper(
+            value = format(value),
+            onMinus = { onChange(steps[(index - 1).coerceAtLeast(0)]) },
+            onPlus = { onChange(steps[(if (steps[index] == value) index + 1 else index).coerceAtMost(steps.lastIndex)]) },
+            canMinus = value > steps.first(),
+            canPlus = value < steps.last(),
+        )
+    })
 }
 
 private fun seconds(value: Int): String = when {
@@ -179,7 +186,7 @@ private fun seconds(value: Int): String = when {
 
 private fun minutes(value: Int): String = if (value == 0) "Av" else "$value min"
 
-/** En liste med tekster man kan slette fra og legge til i. */
+/** En liste med tekster man kan slette fra og legge til i, som en liste i iOS. */
 @Composable
 private fun TextList(items: List<String>, placeholder: String, onChange: (List<String>) -> Unit, onReset: (() -> Unit)?) {
     var draft by remember { mutableStateOf("") }
@@ -191,55 +198,50 @@ private fun TextList(items: List<String>, placeholder: String, onChange: (List<S
         }
         draft = ""
     }
-    BremsCard(padding = 0.dp) {
+    Card {
         items.forEach { item ->
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp)) {
-                Text(item, style = MaterialTheme.typography.bodyLarge, color = BremsPalette.Text, modifier = Modifier.weight(1f).padding(vertical = 14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).padding(start = 8.dp, end = 16.dp)) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(40.dp).clip(CircleShape).pressable({ onChange(items - item) }, pressedScale = 0.85f),
                 ) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Fjern", tint = BremsPalette.TextDim, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.RemoveCircle, contentDescription = "Fjern", tint = palette.warn, modifier = Modifier.size(22.dp))
                 }
+                Text(item, style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
             }
-            Divider()
+            RowDivider(inset = 56.dp)
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).padding(start = 8.dp, end = 16.dp)) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(40.dp).clip(CircleShape).pressable(::add, enabled = draft.isNotBlank(), pressedScale = 0.85f),
+            ) {
+                Icon(Icons.Rounded.AddCircle, contentDescription = "Legg til", tint = TileColors.Teal, modifier = Modifier.size(22.dp))
+            }
             BasicTextField(
                 value = draft,
                 onValueChange = { draft = it },
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = BremsPalette.Text),
-                cursorBrush = SolidColor(BremsPalette.Ice),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = palette.text),
+                cursorBrush = SolidColor(palette.accent),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { add() }),
-                modifier = Modifier.weight(1f).padding(vertical = 14.dp),
+                modifier = Modifier.weight(1f).padding(vertical = 12.dp),
                 decorationBox = { inner ->
                     Box {
-                        if (draft.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = BremsPalette.TextFaint)
+                        if (draft.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = palette.textFaint)
                         inner()
                     }
                 },
             )
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (draft.isBlank()) BremsPalette.SurfaceHigh else BremsPalette.Ice)
-                    .pressable(::add, enabled = draft.isNotBlank(), pressedScale = 0.85f),
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Legg til", tint = if (draft.isBlank()) BremsPalette.TextDim else BremsPalette.OnIce, modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.size(4.dp))
         }
     }
     if (onReset != null) {
         Text(
             "Tilbakestill",
             style = MaterialTheme.typography.labelLarge,
-            color = BremsPalette.Ice,
-            modifier = Modifier.padding(start = 12.dp, top = 6.dp).pressable(onReset).padding(8.dp),
+            color = palette.accent,
+            modifier = Modifier.padding(start = 8.dp, top = 4.dp).pressable(onReset).padding(8.dp),
         )
     }
 }

@@ -16,12 +16,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.HourglassEmpty
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -43,21 +47,23 @@ fun GuideScreen(bridge: NativeBridge, store: BremsStore, onBack: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 16.dp),
     ) {
-        Header("Oppsett", onBack)
+        NavBar("Brems", onBack)
+        Box(Modifier.padding(horizontal = 4.dp)) { LargeTitle("Oppsett") }
         Text(
             "iOS lar ikke apper se hva du bruker telefonen til. Derfor sier Snarveier fra til Brems når en app åpnes og lukkes. " +
                 "Du lager to automasjoner, én gang.",
             style = MaterialTheme.typography.bodyLarge,
-            color = BremsPalette.TextDim,
+            color = palette.textDim,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
 
+        Spacer(Modifier.height(20.dp))
         Status(store)
 
-        Step("1", "Når apper åpnes")
-        BremsCard {
+        Section("1", "Når apper åpnes")
+        Card(padding = 20.dp) {
             Steps(
                 listOf(
                     "Åpne **Snarveier**, gå til **Automatisering** og trykk **+**.",
@@ -68,8 +74,8 @@ fun GuideScreen(bridge: NativeBridge, store: BremsStore, onBack: () -> Unit) {
             )
         }
 
-        Step("2", "Når apper lukkes")
-        BremsCard {
+        Section("2", "Når apper lukkes")
+        Card(padding = 20.dp) {
             Steps(
                 listOf(
                     "Lag en ny automasjon med **App** og de samme appene.",
@@ -79,35 +85,63 @@ fun GuideScreen(bridge: NativeBridge, store: BremsStore, onBack: () -> Unit) {
             )
         }
 
-        Step(null, "Tips")
-        BremsCard {
+        Spacer(Modifier.height(20.dp))
+        Card(padding = 20.dp) {
+            Text("Tid per app", style = MaterialTheme.typography.titleMedium, color = palette.text)
+            Spacer(Modifier.height(6.dp))
             Text(
-                "Snarveier sier ikke hvilken av appene som ble åpnet. Vil du se tiden per app, lag én åpnet-automasjon per app " +
-                    "og skriv navnet i **App**-feltet i handlingen. Da kan Brems også sende deg rett tilbake til appen etter pausen.".bold(),
+                "Snarveier sier ikke hvilken av appene som ble åpnet. Lag én åpnet-automasjon per app og skriv navnet i App-feltet " +
+                    "i handlingen, så ser du tiden per app. Da sender Brems deg også rett tilbake til appen etter pausen.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = BremsPalette.Text,
+                color = palette.textDim,
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         PrimaryButton("Åpne Snarveier", { bridge.openUrl("shortcuts://") })
 
-        Step(null, "Logg")
+        Spacer(Modifier.height(28.dp))
+        GroupLabel("Logg")
         Log(store)
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(40.dp))
     }
 }
 
 @Composable
-private fun Step(number: String?, title: String) {
-    Spacer(Modifier.height(20.dp))
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(horizontal = 4.dp)) {
-        if (number != null) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp).clip(CircleShape).background(BremsPalette.Ice)) {
-                Text(number, style = MaterialTheme.typography.labelLarge, color = BremsPalette.OnIce)
+private fun Section(number: String, title: String) {
+    Spacer(Modifier.height(28.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(26.dp).clip(CircleShape).background(palette.accent)) {
+            Text(number, style = MaterialTheme.typography.labelLarge, color = palette.onAccent)
+        }
+        Text(title, style = MaterialTheme.typography.titleLarge, color = palette.text)
+    }
+}
+
+/** Om Brems har hørt fra Snarveier, så man ser at oppsettet virker. */
+@Composable
+private fun Status(store: BremsStore) {
+    val last = store.data.opens.lastOrNull()
+    Card {
+        ListRow(
+            title = if (last != null) "Brems hører fra Snarveier" else "Venter på Snarveier",
+            icon = if (last != null) Icons.Rounded.CheckCircle else Icons.Rounded.HourglassEmpty,
+            iconTint = if (last != null) TileColors.Teal else TileColors.Orange,
+            subtitle = if (last != null) "Sist: ${appName(last.app)} åpnet kl. ${clock(last.atMillis)}" else "Lag automasjonene, og åpne en av appene for å teste.",
+        )
+    }
+}
+
+@Composable
+private fun Steps(steps: List<String>) {
+    val accent = palette.accent
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        steps.forEachIndexed { index, step ->
+            Row {
+                Text("${index + 1}", style = MaterialTheme.typography.titleSmall, color = palette.textFaint, modifier = Modifier.width(22.dp))
+                Text(step.bold(accent), style = MaterialTheme.typography.bodyMedium, color = palette.text, modifier = Modifier.weight(1f))
             }
         }
-        Text(title, style = MaterialTheme.typography.titleLarge, color = BremsPalette.Text)
     }
 }
 
@@ -115,17 +149,24 @@ private fun Step(number: String?, title: String) {
 @Composable
 private fun Log(store: BremsStore) {
     val entries = store.data.log.asReversed()
-    BremsCard {
+    Card(padding = 16.dp) {
         if (entries.isEmpty()) {
-            Text("Ingenting ennå.", style = MaterialTheme.typography.bodyMedium, color = BremsPalette.TextDim)
+            Text("Ingenting ennå.", style = MaterialTheme.typography.bodyMedium, color = palette.textDim)
         }
         entries.forEachIndexed { index, entry ->
             if (index > 0) Spacer(Modifier.height(10.dp))
             Row {
-                Text(clock(entry.atMillis, seconds = true), style = MaterialTheme.typography.labelMedium, color = BremsPalette.TextFaint, modifier = Modifier.width(72.dp))
-                Text(entry.text, style = MaterialTheme.typography.bodySmall, color = BremsPalette.Text, modifier = Modifier.weight(1f))
+                Text(clock(entry.atMillis, seconds = true), style = MaterialTheme.typography.labelMedium, color = palette.textFaint, modifier = Modifier.width(70.dp))
+                Text(entry.text, style = MaterialTheme.typography.bodySmall, color = palette.text, modifier = Modifier.weight(1f))
             }
         }
+    }
+}
+
+/** Gjør **slik** tekst fet, som navnene på knappene i Snarveier. */
+private fun String.bold(color: Color) = buildAnnotatedString {
+    split("**").forEachIndexed { index, part ->
+        if (index % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = color)) { append(part) } else append(part)
     }
 }
 
@@ -134,51 +175,4 @@ private fun clock(millis: Long, seconds: Boolean = false): String {
     val time = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.currentSystemDefault()).time
     fun two(n: Int) = n.toString().padStart(2, '0')
     return "${two(time.hour)}:${two(time.minute)}" + if (seconds) ":${two(time.second)}" else ""
-}
-
-/** Om Brems har hørt fra Snarveier, så man ser at oppsettet virker. */
-@Composable
-private fun Status(store: BremsStore) {
-    val last = store.data.opens.lastOrNull()
-    val heard = last != null
-    BremsCard {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(10.dp).clip(CircleShape).background(if (heard) BremsPalette.Ice else BremsPalette.Warn))
-            Column {
-                Text(
-                    if (heard) "Brems hører fra Snarveier" else "Brems har ikke hørt noe ennå",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = BremsPalette.Text,
-                )
-                Text(
-                    if (last != null) {
-                        "Sist: ${appName(last.app)} åpnet kl. ${clock(last.atMillis)}"
-                    } else {
-                        "Lag automasjonene, og åpne en av appene for å teste."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = BremsPalette.TextDim,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun Steps(steps: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        steps.forEachIndexed { index, step ->
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("${index + 1}.", style = MaterialTheme.typography.titleSmall, color = BremsPalette.TextFaint, modifier = Modifier.width(18.dp))
-                Text(step.bold(), style = MaterialTheme.typography.bodyMedium, color = BremsPalette.Text, modifier = Modifier.weight(1f).padding(top = 3.dp))
-            }
-        }
-    }
-}
-
-/** Gjør **slik** tekst fet, som navnene på knappene i Snarveier. */
-private fun String.bold() = buildAnnotatedString {
-    split("**").forEachIndexed { index, part ->
-        if (index % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = BremsPalette.Ice)) { append(part) } else append(part)
-    }
 }

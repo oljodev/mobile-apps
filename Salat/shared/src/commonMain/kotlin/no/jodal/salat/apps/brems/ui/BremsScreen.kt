@@ -4,10 +4,9 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,12 +23,20 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.DoNotTouch
+import androidx.compose.material.icons.rounded.HourglassBottom
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.material.icons.rounded.SelfImprovement
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,26 +54,38 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import no.jodal.salat.DeepLinks
 import no.jodal.salat.NativeBridge
-import no.jodal.salat.apps.brems.BremsData
 import no.jodal.salat.apps.brems.BremsSettings
 import no.jodal.salat.apps.brems.BremsStore
 import no.jodal.salat.apps.brems.DayUsage
 import no.jodal.salat.apps.brems.appName
-import no.jodal.salat.apps.brems.dayFraction
+import no.jodal.salat.apps.brems.formatDay
 import no.jodal.salat.apps.brems.formatDuration
-import no.jodal.salat.apps.brems.segmentsOn
+import no.jodal.salat.apps.brems.hourlyMinutes
 import no.jodal.salat.apps.brems.today
+import no.jodal.salat.apps.brems.usageOn
 import no.jodal.salat.apps.brems.usageToday
-import no.jodal.salat.ui.BackButton
+import no.jodal.salat.apps.brems.yesterday
 import no.jodal.salat.ui.pressable
 
 private enum class BremsDestination { Home, Settings, Guide, Pause }
+
+/** Fargene på rutene foran radene, som i Innstillinger i iOS. */
+object TileColors {
+    val Indigo = Color(0xFF5B5BD6)
+    val Orange = Color(0xFFF2994A)
+    val Pink = Color(0xFFE2557A)
+    val Teal = Color(0xFF2BAE9B)
+    val Blue = Color(0xFF3B82F6)
+    val Gray = Color(0xFF8E8E98)
+}
 
 @Composable
 fun BremsScreen(bridge: NativeBridge, onBack: () -> Unit) {
@@ -81,16 +100,16 @@ fun BremsScreen(bridge: NativeBridge, onBack: () -> Unit) {
             if (DeepLinks.consume("brems", "pause") && store.currentPause() != null) destination = BremsDestination.Pause
         }
 
-        Box(Modifier.fillMaxSize().background(BremsPalette.Ink)) {
+        Box(Modifier.fillMaxSize().background(palette.background)) {
             AnimatedContent(
                 targetState = destination,
                 transitionSpec = {
-                    val duration = 280
+                    val duration = 300
                     when {
                         targetState == BremsDestination.Pause ->
-                            slideInVertically(tween(duration)) { it / 6 } + fadeIn(tween(duration)) togetherWith fadeOut(tween(duration))
+                            fadeIn(tween(duration)) + scaleIn(tween(duration), initialScale = 1.04f) togetherWith fadeOut(tween(duration))
                         initialState == BremsDestination.Pause ->
-                            fadeIn(tween(duration)) togetherWith slideOutVertically(tween(duration)) { it / 6 } + fadeOut(tween(duration))
+                            fadeIn(tween(duration)) togetherWith fadeOut(tween(duration))
                         targetState == BremsDestination.Home ->
                             slideInHorizontally(tween(duration)) { -it / 4 } + fadeIn(tween(duration)) togetherWith slideOutHorizontally(tween(duration)) { it }
                         else ->
@@ -129,6 +148,7 @@ private fun Home(store: BremsStore, onBack: () -> Unit, onOpen: (BremsDestinatio
     val data = store.data
     val zone = TimeZone.currentSystemDefault()
     val today = data.usageToday(now, zone)
+    val before = data.usageOn(yesterday(now, zone), now, zone)
     val pause = store.currentPause()?.takeIf { now < it.untilMillis }
 
     Column(
@@ -137,213 +157,272 @@ private fun Home(store: BremsStore, onBack: () -> Unit, onOpen: (BremsDestinatio
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Box(Modifier.weight(1f).padding(start = 0.dp)) { BackButton(onBack, color = BremsPalette.Ice) }
-            PlainIconButton(Icons.Rounded.Tune, "Innstillinger", { onOpen(BremsDestination.Settings) })
+        NavBar("Salat", onBack) {
+            CircleIconButton(Icons.Rounded.Tune, "Innstillinger") { onOpen(BremsDestination.Settings) }
+        }
+        Box(Modifier.padding(horizontal = 4.dp)) {
+            LargeTitle("Brems", subtitle = if (data.settings.enabled) formatDay(today(now, zone)) else "Skrudd av")
         }
 
-        Spacer(Modifier.height(28.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BremsLogo(22.dp)
-            Eyebrow(if (data.settings.enabled) "Brems  ·  i dag" else "Brems er av")
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            val minutes = today.millis / 60_000
-            Text(
-                if (minutes < 60) "$minutes" else "${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}",
-                style = MaterialTheme.typography.displayLarge,
-                color = BremsPalette.Text,
-            )
-            Text(
-                if (minutes < 60) "min" else "timer",
-                style = MaterialTheme.typography.titleLarge,
-                color = BremsPalette.TextDim,
-                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp),
-            )
-        }
-        Text("i appene du bremser", style = MaterialTheme.typography.bodyMedium, color = BremsPalette.TextDim)
-
-        Spacer(Modifier.height(28.dp))
-        DayTimeline(data, now, zone)
-
-        val active = data.active
-        if (pause != null || active != null) {
-            Spacer(Modifier.height(24.dp))
-            if (pause != null) {
-                LiveRow(
-                    text = "Pause før ${appName(pause.app)}",
-                    value = "${(pause.untilMillis - now + 999) / 1000} s",
-                    onClick = { onOpen(BremsDestination.Pause) },
-                )
-            } else if (active != null) {
-                LiveRow(text = "${appName(active.app).replaceFirstChar { it.uppercase() }} er åpen", value = formatDuration(now - active.startMillis))
-            }
+        if (pause != null) {
+            PauseBanner(appName(pause.app), (pause.untilMillis - now + 999) / 1000) { onOpen(BremsDestination.Pause) }
+            Spacer(Modifier.height(16.dp))
         }
 
-        Spacer(Modifier.height(32.dp))
-        Stats(today)
+        TodayCard(today, before, store, now, zone)
+
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatCard(Icons.Rounded.TouchApp, TileColors.Blue, "${today.opens}", "Åpninger", Modifier.weight(1f))
+            StatCard(Icons.Rounded.PauseCircle, TileColors.Indigo, "${today.pauses}", "Pauser", Modifier.weight(1f))
+            StatCard(Icons.Rounded.DoNotTouch, TileColors.Teal, "${today.stopped}", "Lot være", Modifier.weight(1f))
+        }
 
         if (data.opens.isEmpty()) {
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
             SetupCard { onOpen(BremsDestination.Guide) }
         }
 
-        Spacer(Modifier.height(40.dp))
-        SectionHeader("Regler", action = "Endre", onAction = { onOpen(BremsDestination.Settings) })
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(28.dp))
+        GroupLabel("Regler", action = "Endre", onAction = { onOpen(BremsDestination.Settings) })
         Rules(data.settings) { onOpen(BremsDestination.Settings) }
 
         if (today.apps.any { it.first.isNotEmpty() }) {
-            Spacer(Modifier.height(40.dp))
-            SectionHeader("Apper i dag")
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(28.dp))
+            GroupLabel("Apper i dag")
             Apps(today)
         }
 
+        Spacer(Modifier.height(28.dp))
+        GroupLabel("Oppsett")
+        Card {
+            ListRow(
+                "Snarveier og logg",
+                icon = Icons.Rounded.Bolt,
+                iconTint = TileColors.Gray,
+                chevron = true,
+                onClick = { onOpen(BremsDestination.Guide) },
+            )
+        }
         Spacer(Modifier.height(40.dp))
-        BremsCard(onClick = { onOpen(BremsDestination.Guide) }, padding = 0.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text("Oppsett og logg", style = MaterialTheme.typography.titleMedium, color = BremsPalette.Text)
-                    Text("Automasjonene i Snarveier", style = MaterialTheme.typography.bodySmall, color = BremsPalette.TextDim)
-                }
-                Icon(Icons.AutoMirrored.Rounded.ArrowForwardIos, contentDescription = null, tint = BremsPalette.TextFaint, modifier = Modifier.size(14.dp))
-            }
-        }
-        Spacer(Modifier.height(32.dp))
     }
 }
 
-/** Døgnet som en stripe, med de gangene appene var åpne lyst opp. */
 @Composable
-private fun DayTimeline(data: BremsData, now: Long, zone: TimeZone) {
-    val segments = data.segmentsOn(today(now, zone), now, zone)
-    val nowFraction = dayFraction(now, zone)
-    Column {
-        Canvas(Modifier.fillMaxWidth().height(28.dp)) {
-            val bar = size.height
-            drawRoundRect(BremsPalette.Surface, cornerRadius = CornerRadius(8.dp.toPx()))
-            segments.forEach { range ->
-                val x = range.start * size.width
-                val w = ((range.endInclusive - range.start) * size.width).coerceAtLeast(3.dp.toPx())
-                drawRoundRect(BremsPalette.Ice, topLeft = Offset(x, 0f), size = Size(w, bar), cornerRadius = CornerRadius(3.dp.toPx()))
-            }
-            // Nå: en tynn strek, så man ser hvor langt dagen har kommet.
-            val x = nowFraction * size.width
-            drawLine(BremsPalette.TextDim, Offset(x, -4.dp.toPx()), Offset(x, bar + 4.dp.toPx()), strokeWidth = 1.5f.dp.toPx())
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            listOf("00", "06", "12", "18", "24").forEach {
-                Text(it, style = MaterialTheme.typography.labelMedium, color = BremsPalette.TextFaint)
-            }
-        }
-    }
-}
-
-/** Det som skjer akkurat nå, med en lysende prikk. */
-@Composable
-private fun LiveRow(text: String, value: String, onClick: (() -> Unit)? = null) {
+private fun PauseBanner(app: String, seconds: Long, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(CircleShape)
-            .background(BremsPalette.Ice.copy(alpha = 0.09f))
-            .then(if (onClick != null) Modifier.pressable(onClick, pressedScale = 0.98f) else Modifier)
-            .padding(horizontal = 18.dp, vertical = 14.dp),
+            .pressable(onClick, pressedScale = 0.98f)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Dusk.Middle)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(BremsPalette.Ice))
-        Text(text, style = MaterialTheme.typography.titleSmall, color = BremsPalette.Text, modifier = Modifier.padding(start = 12.dp).weight(1f))
-        Text(value, style = MaterialTheme.typography.titleSmall, color = BremsPalette.Ice)
+        Column(Modifier.weight(1f)) {
+            Text("Pause pågår", style = MaterialTheme.typography.titleMedium, color = Dusk.Text)
+            Text("Før $app", style = MaterialTheme.typography.bodySmall, color = Dusk.TextDim)
+        }
+        Text("$seconds s", style = MaterialTheme.typography.headlineSmall, color = Dusk.Text)
+        Icon(
+            Icons.AutoMirrored.Rounded.ArrowForwardIos,
+            contentDescription = null,
+            tint = Dusk.TextFaint,
+            modifier = Modifier.padding(start = 12.dp).size(13.dp),
+        )
     }
 }
 
 @Composable
-private fun Stats(today: DayUsage) {
-    Row(Modifier.fillMaxWidth()) {
-        Stat("${today.opens}", "åpninger", Modifier.weight(1f))
-        Box(Modifier.width(1.dp).height(44.dp).background(BremsPalette.Line))
-        Stat("${today.pauses}", "pauser", Modifier.weight(1f).padding(start = 20.dp))
-        Box(Modifier.width(1.dp).height(44.dp).background(BremsPalette.Line))
-        Stat("${today.stopped}", "lot være", Modifier.weight(1f).padding(start = 20.dp))
+private fun TodayCard(today: DayUsage, before: DayUsage, store: BremsStore, now: Long, zone: TimeZone) {
+    Card(padding = 20.dp) {
+        Text("Tid i dag", style = MaterialTheme.typography.titleSmall, color = palette.textDim)
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            val minutes = today.millis / 60_000
+            if (minutes >= 60) {
+                BigNumber("${minutes / 60}")
+                UnitLabel("t")
+            }
+            BigNumber("${minutes % 60}".let { if (minutes >= 60) it.padStart(2, '0') else it })
+            UnitLabel("min")
+        }
+        Comparison(today.millis, before.millis)
+
+        Spacer(Modifier.height(20.dp))
+        HourBars(store.data.hourlyMinutes(today(now, zone), now, zone))
+
+        val active = store.data.active
+        if (active != null) {
+            Spacer(Modifier.height(16.dp))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(palette.line))
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(TileColors.Teal))
+                Text(
+                    "${appName(active.app).replaceFirstChar { it.uppercase() }} er åpen",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = palette.text,
+                    modifier = Modifier.padding(start = 10.dp).weight(1f),
+                )
+                Text(formatDuration(now - active.startMillis), style = MaterialTheme.typography.labelLarge, color = palette.textDim)
+            }
+        }
     }
 }
 
 @Composable
-private fun Stat(value: String, label: String, modifier: Modifier) {
-    Column(modifier) {
-        Text(value, style = MaterialTheme.typography.headlineMedium, color = BremsPalette.Text)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = BremsPalette.TextDim)
+private fun BigNumber(text: String) {
+    Text(text, style = MaterialTheme.typography.displayMedium, color = palette.text)
+}
+
+@Composable
+private fun UnitLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleLarge,
+        color = palette.textDim,
+        modifier = Modifier.padding(start = 4.dp, end = 10.dp, bottom = 9.dp),
+    )
+}
+
+/** «12 min mindre enn i går», i grønt, eller mer, i rødt. */
+@Composable
+private fun Comparison(today: Long, yesterday: Long) {
+    if (yesterday == 0L) {
+        Text("Ingen tid i går å sammenligne med", style = MaterialTheme.typography.bodySmall, color = palette.textFaint)
+        return
+    }
+    val diff = today - yesterday
+    val text = when {
+        diff < 0 -> "${formatDuration(-diff)} mindre enn i går"
+        diff > 0 -> "${formatDuration(diff)} mer enn i går"
+        else -> "Like mye som i går"
+    }
+    Text(text, style = MaterialTheme.typography.labelLarge, color = if (diff <= 0) TileColors.Teal else palette.warn)
+}
+
+/** Et søylediagram over døgnet, én søyle per time. */
+@Composable
+private fun HourBars(minutes: List<Float>) {
+    val accent = palette.accent
+    val empty = palette.cardHigh
+    val max = maxOf(minutes.maxOrNull() ?: 0f, 15f)
+    Column {
+        Canvas(Modifier.fillMaxWidth().height(72.dp)) {
+            val gap = 3.dp.toPx()
+            val width = (size.width - gap * 23) / 24
+            minutes.forEachIndexed { hour, value ->
+                val h = if (value <= 0f) 3.dp.toPx() else maxOf(4.dp.toPx(), size.height * value / max)
+                drawRoundRect(
+                    color = if (value <= 0f) empty else accent,
+                    topLeft = Offset(hour * (width + gap), size.height - h),
+                    size = Size(width, h),
+                    cornerRadius = CornerRadius(width / 2),
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth()) {
+            listOf("00", "06", "12", "18").forEach {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = palette.textFaint, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCard(icon: ImageVector, tint: Color, value: String, label: String, modifier: Modifier) {
+    Card(modifier, padding = 14.dp) {
+        IconTile(icon, tint, size = 26.dp)
+        Spacer(Modifier.height(12.dp))
+        Text(value, style = MaterialTheme.typography.headlineMedium, color = palette.text)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = palette.textDim, maxLines = 1)
     }
 }
 
 @Composable
 private fun SetupCard(onClick: () -> Unit) {
-    BremsCard(onClick = onClick) {
-        Eyebrow("Kom i gang", color = BremsPalette.Ice)
-        Spacer(Modifier.height(10.dp))
-        Text("Koble Brems til Snarveier", style = MaterialTheme.typography.titleLarge, color = BremsPalette.Text)
-        Spacer(Modifier.height(6.dp))
-        Text(
-            "To automasjoner forteller Brems når du åpner og lukker apper. Det tar et par minutter.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = BremsPalette.TextDim,
-        )
+    Card(padding = 20.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconTile(Icons.Rounded.Bolt, palette.accent, size = 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text("Koble til Snarveier", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                Text("Brems trenger to automasjoner. Det tar et par minutter.", style = MaterialTheme.typography.bodySmall, color = palette.textDim)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        PrimaryButton("Sett opp", onClick)
     }
 }
 
-/** Reglene som fire ruter med store tall. */
 @Composable
 private fun Rules(settings: BremsSettings, onClick: () -> Unit) {
-    fun seconds(value: Int) = if (value == 0) "Av" else if (value < 60 || value % 60 != 0) "$value s" else "${value / 60} min"
-    fun minutes(value: Int) = if (value == 0) "Av" else "$value min"
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RuleTile(seconds(settings.openPauseSeconds), "pause når du åpner", Modifier.weight(1f), onClick)
-            RuleTile(minutes(settings.reminderMinutes), "før første varsel", Modifier.weight(1f), onClick)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RuleTile(minutes(settings.limitMinutes), "grense per økt", Modifier.weight(1f), onClick)
-            RuleTile(seconds(settings.limitPauseSeconds), "pause etter grensen", Modifier.weight(1f), onClick)
-        }
+    fun seconds(value: Int) = when {
+        value == 0 -> "Av"
+        value < 60 -> "$value s"
+        value % 60 == 0 -> "${value / 60} min"
+        else -> "${value / 60} min ${value % 60} s"
     }
-}
-
-@Composable
-private fun RuleTile(value: String, label: String, modifier: Modifier, onClick: () -> Unit) {
-    BremsCard(modifier, onClick = onClick, padding = 18.dp) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = BremsPalette.Ice)
-        Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.bodySmall, color = BremsPalette.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    fun minutes(value: Int) = if (value == 0) "Av" else "$value min"
+    Card {
+        ListRow("Åpningspause", Icons.Rounded.Timer, TileColors.Indigo, value = seconds(settings.openPauseSeconds), chevron = true, onClick = onClick)
+        RowDivider()
+        ListRow("Første varsel", Icons.Rounded.NotificationsActive, TileColors.Orange, value = minutes(settings.reminderMinutes), chevron = true, onClick = onClick)
+        RowDivider()
+        ListRow("Grense per økt", Icons.Rounded.HourglassBottom, TileColors.Pink, value = minutes(settings.limitMinutes), chevron = true, onClick = onClick)
+        RowDivider()
+        ListRow("Grensepause", Icons.Rounded.SelfImprovement, TileColors.Teal, value = seconds(settings.limitPauseSeconds), chevron = true, onClick = onClick)
     }
 }
 
 @Composable
 private fun Apps(today: DayUsage) {
     val max = today.apps.maxOf { it.second }.coerceAtLeast(1)
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        today.apps.forEach { (app, millis) ->
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        app.ifEmpty { "Andre apper" },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = BremsPalette.Text,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(formatDuration(millis), style = MaterialTheme.typography.labelMedium, color = BremsPalette.TextDim)
-                }
-                Spacer(Modifier.height(8.dp))
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(BremsPalette.Surface)) {
-                    Box(Modifier.fillMaxWidth(millis.toFloat() / max).fillMaxHeight().clip(CircleShape).background(BremsPalette.Ice))
+    Card {
+        today.apps.forEachIndexed { index, (app, millis) ->
+            if (index > 0) RowDivider(inset = 66.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                AppAvatar(app)
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            app.ifEmpty { "Andre apper" },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = palette.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(formatDuration(millis), style = MaterialTheme.typography.labelLarge, color = palette.textDim)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(palette.cardHigh)) {
+                        Box(Modifier.fillMaxWidth(millis.toFloat() / max).fillMaxHeight().clip(CircleShape).background(avatarColor(app)))
+                    }
                 }
             }
         }
+    }
+}
+
+private val AvatarColors = listOf(TileColors.Indigo, TileColors.Pink, TileColors.Orange, TileColors.Teal, TileColors.Blue)
+
+private fun avatarColor(app: String): Color = if (app.isEmpty()) TileColors.Gray else AvatarColors[app.lowercase().hashCode().mod(AvatarColors.size)]
+
+/** Forbokstaven i appen i en farget rute, siden vi ikke har ikonene til andre apper. */
+@Composable
+private fun AppAvatar(app: String) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(avatarColor(app)),
+    ) {
+        Text(app.firstOrNull()?.uppercase() ?: "·", style = MaterialTheme.typography.titleMedium, color = Color.White)
     }
 }
