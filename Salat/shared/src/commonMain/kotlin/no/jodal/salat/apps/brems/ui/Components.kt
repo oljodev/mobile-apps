@@ -164,13 +164,17 @@ fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit, canMinus: Bo
         modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(palette.cardHigh),
     ) {
         StepButton(Icons.Rounded.Remove, "Mindre", onMinus, canMinus)
-        Text(
-            value,
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            color = palette.text,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 52.dp),
-        )
+        if (value.isNotEmpty()) {
+            Text(
+                value,
+                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                color = palette.text,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(min = 52.dp),
+            )
+        } else {
+            Box(Modifier.width(1.dp).height(18.dp).background(palette.line))
+        }
         StepButton(Icons.Rounded.Add, "Mer", onPlus, canPlus)
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DoNotTouch
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PauseCircle
@@ -68,6 +69,7 @@ import no.jodal.salat.apps.brems.DayUsage
 import no.jodal.salat.apps.brems.appName
 import no.jodal.salat.apps.brems.formatDay
 import no.jodal.salat.apps.brems.formatDuration
+import no.jodal.salat.apps.brems.goalStatus
 import no.jodal.salat.apps.brems.hourlyMinutes
 import no.jodal.salat.apps.brems.today
 import no.jodal.salat.apps.brems.usageOn
@@ -75,7 +77,15 @@ import no.jodal.salat.apps.brems.usageToday
 import no.jodal.salat.apps.brems.yesterday
 import no.jodal.salat.ui.pressable
 
-private enum class BremsDestination { Home, Settings, Guide, Pause }
+private sealed interface BremsDestination {
+    data object Home : BremsDestination
+    data object Settings : BremsDestination
+    data object Guide : BremsDestination
+    data object Pause : BremsDestination
+
+    /** Lag et nytt mål ([id] er `null`) eller endre et. */
+    data class GoalEdit(val id: String?) : BremsDestination
+}
 
 /** Fargene på rutene foran radene, som i Innstillinger i iOS. */
 object TileColors {
@@ -121,6 +131,7 @@ fun BremsScreen(bridge: NativeBridge, onBack: () -> Unit) {
                     BremsDestination.Home -> Home(store, onBack = onBack, onOpen = { destination = it })
                     BremsDestination.Settings -> SettingsScreen(store, onBack = { destination = BremsDestination.Home })
                     BremsDestination.Guide -> GuideScreen(bridge, store, onBack = { destination = BremsDestination.Home })
+                    is BremsDestination.GoalEdit -> GoalScreen(store, current.id, onBack = { destination = BremsDestination.Home })
                     BremsDestination.Pause -> {
                         val pause = remember { store.currentPause() ?: store.data.pauses.lastOrNull() }
                         if (pause == null) {
@@ -183,6 +194,26 @@ private fun Home(store: BremsStore, onBack: () -> Unit, onOpen: (BremsDestinatio
         if (data.opens.isEmpty()) {
             Spacer(Modifier.height(28.dp))
             SetupCard { onOpen(BremsDestination.Guide) }
+        }
+
+        Spacer(Modifier.height(28.dp))
+        GroupLabel("Mål", action = "Nytt mål", onAction = { onOpen(BremsDestination.GoalEdit(null)) })
+        if (data.goals.isEmpty()) {
+            Card(onClick = { onOpen(BremsDestination.GoalEdit(null)) }, padding = 20.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    IconTile(Icons.Rounded.Flag, TileColors.Orange, size = 40.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text("Sett deg et mål", style = MaterialTheme.typography.titleMedium, color = palette.text)
+                        Text("For eksempel under 15 minutter Snapchat om dagen. Hold det, og bygg en rekke.", style = MaterialTheme.typography.bodySmall, color = palette.textDim)
+                    }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                data.goals.forEach { goal ->
+                    GoalCard(data.goalStatus(goal, now, zone)) { onOpen(BremsDestination.GoalEdit(goal.id)) }
+                }
+            }
         }
 
         Spacer(Modifier.height(28.dp))
@@ -409,20 +440,5 @@ private fun Apps(today: DayUsage) {
                 }
             }
         }
-    }
-}
-
-private val AvatarColors = listOf(TileColors.Indigo, TileColors.Pink, TileColors.Orange, TileColors.Teal, TileColors.Blue)
-
-private fun avatarColor(app: String): Color = if (app.isEmpty()) TileColors.Gray else AvatarColors[app.lowercase().hashCode().mod(AvatarColors.size)]
-
-/** Forbokstaven i appen i en farget rute, siden vi ikke har ikonene til andre apper. */
-@Composable
-private fun AppAvatar(app: String) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(avatarColor(app)),
-    ) {
-        Text(app.firstOrNull()?.uppercase() ?: "·", style = MaterialTheme.typography.titleMedium, color = Color.White)
     }
 }
